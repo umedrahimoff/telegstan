@@ -11,8 +11,6 @@ const prisma = new PrismaClient();
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID || "0");
 const apiHash = process.env.TELEGRAM_API_HASH || "";
-const phoneNumber = "qr_session"; // placeholder for DB
-
 async function run() {
     console.log("🚀 Telegram Auth via QR Code for Telegstan...\n");
 
