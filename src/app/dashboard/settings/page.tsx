@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Key, Phone, ShieldCheck, Mail, Fingerprint, Activity, Database, Download, Trash2, AlertTriangle, Users, History, Send, Loader2, RefreshCw } from "lucide-react";
+import { Key, Phone, ShieldCheck, Mail, Fingerprint, Activity, Database, Download, Trash2, AlertTriangle, Users, History, Send, Loader2, RefreshCw, Clock } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import axios from "axios";
@@ -31,11 +31,31 @@ export default function SettingsPage() {
         me?.role === "admin" ? "/api/users" : null,
         fetcher
     );
+    const { data: catchUpData, mutate: mutateCatchUp } = useSWR<{
+        queue: null | {
+            channelIds: string[];
+            index: number;
+            totalChannels: number;
+            done: boolean;
+            currentChannelId: string | null;
+            dateFrom: string;
+            dateTo: string;
+            gapMs: number;
+            startedAt: string;
+            nextEligibleAt: string;
+        };
+    }>(me?.role === "admin" ? "/api/settings/catch-up-backfill" : null, fetcher, { refreshInterval: 12000 });
     const [clearing, setClearing] = useState(false);
     const [savingParser, setSavingParser] = useState(false);
     const [testRecipients, setTestRecipients] = useState<Set<string>>(new Set());
     const [testMessageBody, setTestMessageBody] = useState("");
     const [sendingTest, setSendingTest] = useState(false);
+    const [catchUpDateFrom, setCatchUpDateFrom] = useState("2026-03-22");
+    const [catchUpDateTo, setCatchUpDateTo] = useState("");
+    const [catchUpMinutes, setCatchUpMinutes] = useState(10);
+    const [catchUpNotify, setCatchUpNotify] = useState(false);
+    const [catchUpSaveAll, setCatchUpSaveAll] = useState(false);
+    const [catchUpLoading, setCatchUpLoading] = useState(false);
     const [testResult, setTestResult] = useState<{ sent: string[]; failed: { username: string; error: string }[]; queued?: string } | null>(null);
     const [reauthStatus, setReauthStatus] = useState<{ status: string; qrUrl?: string; hint?: string; error?: string } | null>(null);
     const [reauthPassword, setReauthPassword] = useState("");
@@ -284,6 +304,136 @@ export default function SettingsPage() {
                             />
                             Parser enabled
                         </label>
+                    </div>
+
+                    <div className="card" style={{ padding: '1rem', marginTop: '1rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                            <Clock size={18} color="#00A3FF" />
+                            <h2 style={{ fontSize: '1rem', fontWeight: 800 }}>Догон по каналам (catch-up)</h2>
+                        </div>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem' }}>
+                            Все активные каналы по очереди на <b>Railway-воркере</b>: история за период, пауза между каналами ~ (выбранные минуты ÷ число каналов), минимум 8 с. Не грузит Telegram разом.
+                        </p>
+                        {catchUpData?.queue && !catchUpData.queue.done && (
+                            <div
+                                style={{
+                                    marginBottom: '0.75rem',
+                                    padding: '0.6rem 0.75rem',
+                                    borderRadius: '8px',
+                                    background: 'rgba(0,163,255,0.12)',
+                                    border: '1px solid rgba(0,163,255,0.25)',
+                                    fontSize: '0.8rem',
+                                    color: 'rgba(255,255,255,0.85)',
+                                }}
+                            >
+                                В очереди: канал {catchUpData.queue.index + 1} / {catchUpData.queue.totalChannels}
+                                {catchUpData.queue.currentChannelId ? ` (id ${catchUpData.queue.currentChannelId.slice(0, 8)}…)` : ""}. Пауза ~{Math.round(catchUpData.queue.gapMs / 1000)} с между каналами.
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem', maxWidth: '22rem' }}>
+                            <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                                С даты
+                                <input
+                                    type="date"
+                                    value={catchUpDateFrom}
+                                    onChange={(e) => setCatchUpDateFrom(e.target.value)}
+                                    style={{ display: 'block', width: '100%', marginTop: '0.25rem', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff' }}
+                                />
+                            </label>
+                            <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                                По дату (пусто = сейчас)
+                                <input
+                                    type="date"
+                                    value={catchUpDateTo}
+                                    onChange={(e) => setCatchUpDateTo(e.target.value)}
+                                    style={{ display: 'block', width: '100%', marginTop: '0.25rem', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff' }}
+                                />
+                            </label>
+                            <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
+                                Разнести старт каналов на ~минут
+                                <input
+                                    type="number"
+                                    min={1}
+                                    max={120}
+                                    value={catchUpMinutes}
+                                    onChange={(e) => setCatchUpMinutes(Math.min(120, Math.max(1, parseInt(e.target.value, 10) || 10)))}
+                                    style={{ display: 'block', width: '100%', marginTop: '0.25rem', padding: '0.35rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(0,0,0,0.3)', color: '#fff' }}
+                                />
+                            </label>
+                        </div>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginBottom: '0.35rem', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={catchUpSaveAll} onChange={(e) => setCatchUpSaveAll(e.target.checked)} style={{ accentColor: '#00A3FF' }} />
+                            Сохранять все сообщения с текстом в периоде (иначе только посты с совпадением по ключам)
+                        </label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
+                            <input type="checkbox" checked={catchUpNotify} onChange={(e) => setCatchUpNotify(e.target.checked)} style={{ accentColor: '#00A3FF' }} />
+                            Отправлять уведомления в Telegram при совпадениях (обычно выкл. для догона)
+                        </label>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <button
+                                type="button"
+                                disabled={catchUpLoading || settings?.parserEnabled === false}
+                                onClick={async () => {
+                                    setCatchUpLoading(true);
+                                    try {
+                                        const from = catchUpDateFrom ? `${catchUpDateFrom}T00:00:00.000Z` : undefined;
+                                        const to = catchUpDateTo ? `${catchUpDateTo}T23:59:59.999Z` : undefined;
+                                        const { data } = await axios.post("/api/settings/catch-up-backfill", {
+                                            dateFrom: from,
+                                            dateTo: to,
+                                            totalMinutes: catchUpMinutes,
+                                            sendNotifications: catchUpNotify,
+                                            saveAll: catchUpSaveAll,
+                                        });
+                                        alert(data.message || "Очередь создана");
+                                        mutateCatchUp();
+                                    } catch (e: unknown) {
+                                        const msg = axios.isAxiosError(e) ? e.response?.data?.error : "Ошибка";
+                                        alert(typeof msg === "string" ? msg : "Ошибка");
+                                    } finally {
+                                        setCatchUpLoading(false);
+                                    }
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.45rem 0.85rem',
+                                    fontSize: '0.85rem',
+                                    background: 'rgba(0,163,255,0.2)',
+                                    border: '1px solid rgba(0,163,255,0.35)',
+                                    borderRadius: '8px',
+                                    color: '#00A3FF',
+                                    cursor: catchUpLoading || settings?.parserEnabled === false ? "not-allowed" : "pointer",
+                                }}
+                            >
+                                {catchUpLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                Запустить очередь
+                            </button>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!confirm("Сбросить очередь catch-up?")) return;
+                                    try {
+                                        await axios.delete("/api/settings/catch-up-backfill");
+                                        mutateCatchUp();
+                                    } catch {
+                                        alert("Не удалось сбросить");
+                                    }
+                                }}
+                                style={{
+                                    padding: '0.45rem 0.85rem',
+                                    fontSize: '0.85rem',
+                                    background: 'transparent',
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    borderRadius: '8px',
+                                    color: 'rgba(255,255,255,0.6)',
+                                    cursor: "pointer",
+                                }}
+                            >
+                                Сбросить очередь
+                            </button>
+                        </div>
                     </div>
 
                     <div className="card" style={{ padding: '1rem', marginTop: '1rem' }}>

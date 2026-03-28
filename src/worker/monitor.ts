@@ -7,9 +7,12 @@ import { translateToRussian } from "../lib/deepl";
 import { logNotification } from "../lib/notificationLog";
 import { PrismaClient } from "@prisma/client";
 import { utils } from "telegram";
+import { CATCH_UP_BACKFILL_KEY, type CatchUpBackfillQueue } from "../lib/catchUpBackfillQueue";
+import { runChannelBackfill } from "../lib/channelBackfillRun";
 
 const prisma = new PrismaClient();
 const tg = TelegramManager.getInstance();
+let catchUpBackfillBusy = false;
 
 async function startMonitoring() {
     console.log("🚀 Starting Telegstan Monitor...");
@@ -411,6 +414,85 @@ async function startMonitoring() {
             console.warn("Pending test notification error:", (e as Error).message);
         }
     }, 30 * 1000);
+
+    // Очередь догона по каналам (ставится из админки; паузы между каналами — анти-flood)
+    setInterval(async () => {
+        if (catchUpBackfillBusy) return;
+        try {
+            const row = await prisma.appSetting.findUnique({ where: { key: CATCH_UP_BACKFILL_KEY } });
+            if (!row?.value) return;
+            const q = JSON.parse(row.value) as CatchUpBackfillQueue;
+            if (!q.channelIds?.length || q.index >= q.channelIds.length) {
+                await prisma.appSetting.delete({ where: { key: CATCH_UP_BACKFILL_KEY } }).catch(() => {});
+                return;
+            }
+            if (new Date(q.nextEligibleAt).getTime() > Date.now()) return;
+
+            catchUpBackfillBusy = true;
+            const channelId = q.channelIds[q.index];
+            const channel = await prisma.channel.findUnique({
+                where: { id: channelId },
+                include: { keywords: { where: { isActive: true } } },
+            });
+
+            const advanceQueue = async (skipChannel: boolean) => {
+                q.index += 1;
+                q.nextEligibleAt = new Date(Date.now() + q.gapMs).toISOString();
+                if (q.index >= q.channelIds.length) {
+                    await prisma.appSetting.delete({ where: { key: CATCH_UP_BACKFILL_KEY } });
+                    console.log("✅ Catch-up queue finished (all channels)");
+                } else {
+                    await prisma.appSetting.update({
+                        where: { key: CATCH_UP_BACKFILL_KEY },
+                        data: { value: JSON.stringify(q) },
+                    });
+                }
+                if (skipChannel) console.warn(`Catch-up: skipped missing channel ${channelId}`);
+            };
+
+            if (!channel) {
+                await advanceQueue(true);
+                return;
+            }
+
+            const globalKeywords = await prisma.globalKeyword.findMany({ where: { isActive: true } });
+            const dateFrom = new Date(q.dateFrom);
+            const dateTo = new Date(q.dateTo);
+
+            console.log(
+                `📥 Catch-up [${q.index + 1}/${q.channelIds.length}] ${channel.username ?? channel.id} (${dateFrom.toISOString().slice(0, 10)} … ${dateTo.toISOString().slice(0, 10)})`
+            );
+
+            const { totalScanned, totalMatches } = await runChannelBackfill(
+                prisma,
+                tg,
+                channel,
+                globalKeywords,
+                { kind: "dateRange", dateFrom, dateTo },
+                { sendNotifications: q.sendNotifications, saveAll: q.saveAll }
+            );
+
+            console.log(`   → scanned ${totalScanned}, matches ${totalMatches}`);
+            await advanceQueue(false);
+        } catch (e) {
+            console.error("Catch-up queue error:", e);
+            try {
+                const row = await prisma.appSetting.findUnique({ where: { key: CATCH_UP_BACKFILL_KEY } });
+                if (row?.value) {
+                    const q = JSON.parse(row.value) as CatchUpBackfillQueue;
+                    q.nextEligibleAt = new Date(Date.now() + Math.max(q.gapMs, 60_000)).toISOString();
+                    await prisma.appSetting.update({
+                        where: { key: CATCH_UP_BACKFILL_KEY },
+                        data: { value: JSON.stringify(q) },
+                    });
+                }
+            } catch {
+                /* ignore */
+            }
+        } finally {
+            catchUpBackfillBusy = false;
+        }
+    }, 20_000);
 
     console.log("🟢 Listener active. Waiting for messages...");
 }
