@@ -57,7 +57,15 @@ export async function POST(req: Request) {
         });
 
         const session = await prisma.session.findFirst({ where: { isActive: true } });
-        if (!session) return NextResponse.json({ error: "Service temporarily unavailable" }, { status: 500 });
+        if (!session) {
+            return NextResponse.json(
+                {
+                    error:
+                        "Нет активной сессии Telegram для отправки кода. Подключи аккаунт к этой же базе: локально npm run auth или npm run auth:qr (в .env строки TGSTN_POSTGRES_* как в Vercel), либо через настройки после первого входа.",
+                },
+                { status: 503 }
+            );
+        }
 
         const client = new TelegramClient(new StringSession(session.sessionStr), apiId, apiHash, {
             connectionRetries: 1,
