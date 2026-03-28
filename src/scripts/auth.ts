@@ -13,7 +13,7 @@ const apiHash = process.env.TELEGRAM_API_HASH || "";
 const phoneNumber = "+992880016400"; // Provided by user
 
 async function run() {
-    console.log("🚀 Starting Telegram Auth for Stanify...");
+    console.log("🚀 Starting Telegram Auth for Telegstan...");
 
     if (!apiId || !apiHash) {
         console.error("❌ Error: TELEGRAM_API_ID or TELEGRAM_API_HASH is missing in .env");
@@ -46,7 +46,7 @@ async function run() {
         },
     });
 
-    console.log("💾 Session saved to database. Your Stanify monitor is now ready to start!");
+    console.log("💾 Session saved to database. Your Telegstan monitor is now ready to start!");
     process.exit(0);
 }
 

@@ -60,10 +60,10 @@ export function Sidebar() {
                     WebkitTextFillColor: 'transparent',
                     marginBottom: '0.5rem'
                 }}>
-                    STANIFY
+                    Telegstan
                 </h1>
                 <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
-                    Telegram Monitor {process.env.NEXT_PUBLIC_APP_VERSION || "v1.0.0"}
+                    {process.env.NEXT_PUBLIC_APP_VERSION || "v1.0.0"}
                 </p>
             </div>
 

@@ -65,7 +65,7 @@ export async function POST(req: Request) {
 
         await client.connect();
         const loginMsg = [
-            "🔐 <b>Stanify Login Code</b>",
+            "🔐 <b>Telegstan Login Code</b>",
             "",
             `Your code is: <code>${code}</code>`,
             "",

@@ -1,5 +1,5 @@
 {
-  "name": "stanify",
+  "name": "telegstan",
   "version": "1.0.0",
   "private": true,
   "scripts": {

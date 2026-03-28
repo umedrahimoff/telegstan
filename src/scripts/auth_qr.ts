@@ -14,7 +14,7 @@ const apiHash = process.env.TELEGRAM_API_HASH || "";
 const phoneNumber = "qr_session"; // placeholder for DB
 
 async function run() {
-    console.log("🚀 Telegram Auth via QR Code for Stanify...\n");
+    console.log("🚀 Telegram Auth via QR Code for Telegstan...\n");
 
     if (!apiId || !apiHash) {
         console.error("❌ TELEGRAM_API_ID or TELEGRAM_API_HASH missing in .env");
@@ -62,7 +62,7 @@ async function run() {
 
     await prisma.session.deleteMany({});
     await prisma.session.create({
-        data: { phoneNumber: "stanify_qr", sessionStr, isActive: true },
+        data: { phoneNumber: "telegstan_qr", sessionStr, isActive: true },
     });
 
     console.log("💾 Session saved. Worker is ready to start!");

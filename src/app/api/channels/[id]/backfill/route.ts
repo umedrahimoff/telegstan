@@ -144,7 +144,7 @@ export async function POST(
                             const contentPreview = contentPlain.length > 400 ? contentPlain.slice(0, 400) + "…" : contentPlain;
                             const contentTranslated = await translateToRussian(contentPreview);
                             const notificationText = [
-                                "🔔 Stanify Backfill Alert",
+                                "🔔 Telegstan Backfill Alert",
                                 "",
                                 `📍 Source: ${channelName}`,
                                 `🔑 Keyword: ${kw}`,
@@ -215,7 +215,7 @@ export async function POST(
                             const contentPreview = contentPlain.length > 400 ? contentPlain.slice(0, 400) + "…" : contentPlain;
                             const contentTranslated = await translateToRussian(contentPreview);
                             const notificationText = [
-                                "🔔 Stanify Global Backfill Alert",
+                                "🔔 Telegstan Global Backfill Alert",
                                 "",
                                 `📍 Source: ${channelName}`,
                                 `🔑 Keyword: ${gk.text}`,

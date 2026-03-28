@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { AUTH_SESSION_COOKIE } from "@/lib/authCookie";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rateLimit";
 
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
         });
 
         const cookieStore = await cookies();
-        cookieStore.set("stanify_auth", user.id, {
+        cookieStore.set(AUTH_SESSION_COOKIE, user.id, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
