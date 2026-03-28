@@ -1,121 +1,121 @@
 -- CreateTable
 CREATE TABLE "Channel" (
-      "id" TEXT NOT NULL,
-      "telegramId" TEXT NOT NULL,
-      "username" TEXT,
-      "name" TEXT,
-      "type" TEXT NOT NULL DEFAULT 'channel',
-      "isActive" BOOLEAN NOT NULL DEFAULT false,
-      "saveAllPosts" BOOLEAN NOT NULL DEFAULT false,
-      "language" TEXT,
-      "lastActivityAt" TIMESTAMP(3),
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "telegramId" TEXT NOT NULL,
+          "username" TEXT,
+          "name" TEXT,
+          "type" TEXT NOT NULL DEFAULT 'channel',
+          "isActive" BOOLEAN NOT NULL DEFAULT false,
+          "saveAllPosts" BOOLEAN NOT NULL DEFAULT false,
+          "language" TEXT,
+          "lastActivityAt" TIMESTAMP(3),
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Channel_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "ChannelPost" (
-      "id" TEXT NOT NULL,
-      "channelId" TEXT NOT NULL,
-      "content" TEXT NOT NULL,
-      "messageId" INTEGER,
-      "postLink" TEXT,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "channelId" TEXT NOT NULL,
+          "content" TEXT NOT NULL,
+          "messageId" INTEGER,
+          "postLink" TEXT,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ChannelPost_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "ChannelKeyword" (
-      "id" TEXT NOT NULL,
-      "channelId" TEXT NOT NULL,
-      "keyword" TEXT NOT NULL,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "channelId" TEXT NOT NULL,
+          "keyword" TEXT NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ChannelKeyword_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "Alert" (
-      "id" TEXT NOT NULL,
-      "channelId" TEXT NOT NULL,
-      "postId" TEXT NOT NULL,
-      "keyword" TEXT NOT NULL,
-      "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "channelId" TEXT NOT NULL,
+          "postId" TEXT NOT NULL,
+          "keyword" TEXT NOT NULL,
+          "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Alert_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "AppUser" (
-      "id" TEXT NOT NULL,
-      "username" TEXT NOT NULL,
-      "passwordHash" TEXT NOT NULL,
-      "role" TEXT NOT NULL DEFAULT 'viewer',
-      "isActive" BOOLEAN NOT NULL DEFAULT true,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "username" TEXT NOT NULL,
+          "passwordHash" TEXT NOT NULL,
+          "role" TEXT NOT NULL DEFAULT 'viewer',
+          "isActive" BOOLEAN NOT NULL DEFAULT true,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AppUser_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "UserChannel" (
-      "id" TEXT NOT NULL,
-      "userId" TEXT NOT NULL,
-      "channelId" TEXT NOT NULL,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "userId" TEXT NOT NULL,
+          "channelId" TEXT NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "UserChannel_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "GlobalKeyword" (
-      "id" TEXT NOT NULL,
-      "keyword" TEXT NOT NULL,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "keyword" TEXT NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "GlobalKeyword_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "TelegramSession" (
-      "id" TEXT NOT NULL,
-      "sessionStr" TEXT NOT NULL,
-      "isActive" BOOLEAN NOT NULL DEFAULT true,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" TIMESTAMP(3) NOT NULL,
+          "id" TEXT NOT NULL,
+          "sessionStr" TEXT NOT NULL,
+          "isActive" BOOLEAN NOT NULL DEFAULT true,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "TelegramSession_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "AppSettings" (
-      "id" TEXT NOT NULL,
-      "key" TEXT NOT NULL,
-      "value" TEXT NOT NULL,
-      "updatedAt" TIMESTAMP(3) NOT NULL,
+          "id" TEXT NOT NULL,
+          "key" TEXT NOT NULL,
+          "value" TEXT NOT NULL,
+          "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "AppSettings_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateTable
 CREATE TABLE "NotificationLog" (
-      "id" TEXT NOT NULL,
-      "type" TEXT NOT NULL,
-      "keyword" TEXT NOT NULL,
-      "sourceChannel" TEXT NOT NULL,
-      "recipient" TEXT NOT NULL,
-      "success" BOOLEAN NOT NULL,
-      "errorMessage" TEXT,
-      "alertId" TEXT,
-      "contentPreview" TEXT,
-      "postLink" TEXT,
-      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "id" TEXT NOT NULL,
+          "type" TEXT NOT NULL,
+          "keyword" TEXT NOT NULL,
+          "sourceChannel" TEXT NOT NULL,
+          "recipient" TEXT NOT NULL,
+          "success" BOOLEAN NOT NULL,
+          "errorMessage" TEXT,
+          "alertId" TEXT,
+          "contentPreview" TEXT,
+          "postLink" TEXT,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "NotificationLog_pkey" PRIMARY KEY ("id")
-  );
+      );
 
 -- CreateUniqueIndex
 CREATE UNIQUE INDEX "Channel_telegramId_key" ON "Channel"("telegramId");
