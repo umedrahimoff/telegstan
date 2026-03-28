@@ -390,13 +390,18 @@ async function startMonitoring() {
         try {
             const row = await prisma.appSetting.findUnique({ where: { key: PENDING_TEST_KEY } });
             if (!row?.value) return;
-            const data = JSON.parse(row.value) as { usernames?: string[] };
+            const data = JSON.parse(row.value) as { usernames?: string[]; customText?: string | null };
             const usernames = Array.isArray(data?.usernames) ? data.usernames : [];
             if (usernames.length === 0) return;
+            const custom = typeof data.customText === "string" && data.customText.trim().length > 0 ? data.customText.trim() : null;
             await prisma.appSetting.delete({ where: { key: PENDING_TEST_KEY } });
             for (const u of usernames) {
                 try {
-                    await tg.sendMessage(u, TEST_MSG, "html");
+                    if (custom) {
+                        await tg.sendMessage(u, custom);
+                    } else {
+                        await tg.sendMessage(u, TEST_MSG, "html");
+                    }
                     console.log(`📤 Test message sent to @${u}`);
                 } catch (e: any) {
                     console.warn(`Failed to send test to @${u}:`, e?.message);

@@ -16,12 +16,29 @@ const TEST_MESSAGE = [
     "<i>Sent from Settings → Test notification</i>",
 ].join("\n");
 
+const TG_MESSAGE_MAX = 4096;
+
+function resolveOutboundMessage(body: Record<string, unknown>): { text: string; parseMode: "html" | undefined } | { error: string } {
+    const raw = typeof body.message === "string" ? body.message.trim() : "";
+    if (raw.length > TG_MESSAGE_MAX) {
+        return { error: `Message too long (max ${TG_MESSAGE_MAX} characters)` };
+    }
+    if (raw.length === 0) {
+        return { text: TEST_MESSAGE, parseMode: "html" };
+    }
+    return { text: raw, parseMode: undefined };
+}
+
 export async function POST(req: Request) {
     const admin = await requireAdmin();
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
     try {
-        const body = await req.json().catch(() => ({}));
+        const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+        const outbound = resolveOutboundMessage(body);
+        if ("error" in outbound) {
+            return NextResponse.json({ error: outbound.error }, { status: 400 });
+        }
         const usernamesRaw = body?.usernames;
         let usernames: string[] = [];
         if (Array.isArray(usernamesRaw)) {
@@ -52,7 +69,10 @@ export async function POST(req: Request) {
 
             for (const username of usernames) {
                 try {
-                    await client.sendMessage(username, { message: TEST_MESSAGE, parseMode: "html" });
+                    await client.sendMessage(username, {
+                        message: outbound.text,
+                        ...(outbound.parseMode ? { parseMode: outbound.parseMode } : {}),
+                    });
                     sent.push(username);
                 } catch (e: unknown) {
                     const errMsg = e instanceof Error ? e.message : String(e);
@@ -74,10 +94,15 @@ export async function POST(req: Request) {
         } catch (connectError: unknown) {
             const errStr = connectError instanceof Error ? connectError.message : String(connectError);
             if (errStr.includes("AUTH_KEY_DUPLICATED") || errStr.includes("406")) {
+                const pendingPayload = {
+                    usernames,
+                    createdAt: new Date().toISOString(),
+                    customText: outbound.parseMode ? null : outbound.text,
+                };
                 await prisma.appSetting.upsert({
                     where: { key: PENDING_TEST_KEY },
-                    create: { key: PENDING_TEST_KEY, value: JSON.stringify({ usernames, createdAt: new Date().toISOString() }) },
-                    update: { value: JSON.stringify({ usernames, createdAt: new Date().toISOString() }) },
+                    create: { key: PENDING_TEST_KEY, value: JSON.stringify(pendingPayload) },
+                    update: { value: JSON.stringify(pendingPayload) },
                 });
                 return NextResponse.json({
                     success: true,

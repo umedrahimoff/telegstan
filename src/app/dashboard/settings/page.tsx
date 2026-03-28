@@ -34,6 +34,7 @@ export default function SettingsPage() {
     const [clearing, setClearing] = useState(false);
     const [savingParser, setSavingParser] = useState(false);
     const [testRecipients, setTestRecipients] = useState<Set<string>>(new Set());
+    const [testMessageBody, setTestMessageBody] = useState("");
     const [sendingTest, setSendingTest] = useState(false);
     const [testResult, setTestResult] = useState<{ sent: string[]; failed: { username: string; error: string }[]; queued?: string } | null>(null);
     const [reauthStatus, setReauthStatus] = useState<{ status: string; qrUrl?: string; hint?: string; error?: string } | null>(null);
@@ -304,8 +305,27 @@ export default function SettingsPage() {
                         <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.5rem' }}>
                             <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem' }}>Test notification</h3>
                             <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem' }}>
-                                Send a test message to verify the service is working.
+                                Send a test message to verify the service is working. Leave the text empty to use the default HTML template; otherwise your text is sent as plain (no HTML tags).
                             </p>
+                            <textarea
+                                value={testMessageBody}
+                                onChange={(e) => setTestMessageBody(e.target.value)}
+                                placeholder="Custom message (optional, max 4096 chars)…"
+                                rows={3}
+                                maxLength={4096}
+                                style={{
+                                    width: '100%',
+                                    maxWidth: '32rem',
+                                    marginBottom: '0.75rem',
+                                    padding: '0.6rem 0.75rem',
+                                    fontSize: '0.85rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(255,255,255,0.12)',
+                                    background: 'rgba(0,0,0,0.25)',
+                                    color: 'rgba(255,255,255,0.9)',
+                                    resize: 'vertical',
+                                }}
+                            />
                             {activeUsers.length === 0 ? (
                                 <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>No active users. Add users first.</p>
                             ) : (
@@ -339,6 +359,7 @@ export default function SettingsPage() {
                                                 try {
                                                     const { data } = await axios.post<{ sent: string[]; failed: { username: string; error: string }[]; queued?: boolean; message?: string }>('/api/settings/test-notification', {
                                                         usernames: [...testRecipients],
+                                                        message: testMessageBody.trim() || undefined,
                                                     });
                                                     setTestResult({
                                                         sent: data.sent,
