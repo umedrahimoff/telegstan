@@ -176,3 +176,14 @@ model ActionLog {
   @@index([action])
   @@index([actorId])
 }
+
+/// Одна строка (id = singleton): QR-авторизация Telegram без входа в админку (Vercel + polling).
+model TelegramSetupState {
+  id                String   @id
+  status            String   @default("idle") // idle | starting | qr | password | done | error
+  qrUrl             String?
+  hint              String?
+  error             String?
+  submittedPassword String?
+  updatedAt         DateTime @updatedAt
+}

@@ -61,7 +61,7 @@ export async function POST(req: Request) {
             return NextResponse.json(
                 {
                     error:
-                        "Нет активной сессии Telegram для отправки кода. Подключи аккаунт к этой же базе: локально npm run auth или npm run auth:qr (в .env строки TGSTN_POSTGRES_* как в Vercel), либо через настройки после первого входа.",
+                        "Нет сессии Telegram для отправки кода. Открой /setup/telegram (секрет TGSTN_SETUP_SECRET) или выполни npm run auth:qr к этой базе.",
                 },
                 { status: 503 }
             );

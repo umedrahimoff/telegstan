@@ -1,16 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
+import Link from "next/link";
 import { Lock, Loader2, ArrowRight } from "lucide-react";
 
 export default function LoginPage() {
+    const [needsTelegram, setNeedsTelegram] = useState(false);
     const [step, setStep] = useState(1);
     const [username, setUsername] = useState("");
     const [code, setCode] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [codeSentTo, setCodeSentTo] = useState("");
+
+    useEffect(() => {
+        axios
+            .get("/api/setup/telegram/needs")
+            .then((r) => setNeedsTelegram(Boolean(r.data?.needsSession)))
+            .catch(() => {});
+    }, []);
 
     const requestLogin = async () => {
         const u = username.trim().replace(/^@/, "").toLowerCase();
@@ -94,6 +103,27 @@ export default function LoginPage() {
                         ? "Enter your Telegram username. A one-time code will be sent to you."
                         : `A 6-digit code was sent to ${codeSentTo}.`}
                 </p>
+
+                {needsTelegram && step === 1 && (
+                    <div
+                        style={{
+                            background: "rgba(0,163,255,0.08)",
+                            border: "1px solid rgba(0,163,255,0.25)",
+                            color: "rgba(255,255,255,0.85)",
+                            padding: "0.85rem",
+                            borderRadius: "10px",
+                            fontSize: "0.82rem",
+                            marginBottom: "1.25rem",
+                            lineHeight: 1.45,
+                        }}
+                    >
+                        Сначала привяжи аккаунт Telegram к проекту:{" "}
+                        <Link href="/setup/telegram" style={{ color: "#7dd3fc", fontWeight: 600 }}>
+                            открыть настройку QR
+                        </Link>
+                        . В Vercel задай <code style={{ color: "#a5d8ff" }}>TGSTN_SETUP_SECRET</code> и введи его там.
+                    </div>
+                )}
 
                 {error && (
                     <div style={{
