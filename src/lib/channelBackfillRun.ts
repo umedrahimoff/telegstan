@@ -1,9 +1,9 @@
 import type { Channel, ChannelKeyword, GlobalKeyword, PrismaClient } from "@prisma/client";
-import type { TelegramManager } from "@/lib/telegram";
-import { getFilteredRecipients } from "@/lib/userRecipients";
-import { stripMarkdown } from "@/lib/telegramFormat";
-import { translateToRussian } from "@/lib/deepl";
-import { logNotification } from "@/lib/notificationLog";
+import type { TelegramManager } from "./telegram";
+import { getFilteredRecipients } from "./userRecipients";
+import { stripMarkdown } from "./telegramFormat";
+import { translateToRussian } from "./deepl";
+import { logNotification } from "./notificationLog";
 
 export type ChannelWithKeywords = Channel & { keywords: ChannelKeyword[] };
 export type GlobalKw = Pick<GlobalKeyword, "id" | "text">;
