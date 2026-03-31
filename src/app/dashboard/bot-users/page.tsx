@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import axios from "axios";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { Bot, Check, X, Megaphone, Users2, History } from "lucide-react";
+import { Bot, Check, X, Megaphone, Users2, History, Pause, Play, Trash2, Pencil } from "lucide-react";
 
 type BotRequest = {
     id: string;
@@ -61,7 +62,7 @@ export default function BotUsersPage() {
     const [broadcastSelected, setBroadcastSelected] = useState<Set<string>>(new Set());
     const [broadcastBusy, setBroadcastBusy] = useState(false);
     const [broadcastResult, setBroadcastResult] = useState<{ sent: string[]; failed: { username: string; error: string }[] } | null>(null);
-    const { data: me } = useSWR<{ role: string }>("/api/auth/me", fetcher);
+    const { data: me } = useSWR<{ id: string; role: string }>("/api/auth/me", fetcher);
     const { data, mutate } = useSWR<{ requests: BotRequest[]; broadcasts: BotBroadcastLog[]; users: BotLinkedUser[] }>(
         me?.role === "admin" ? "/api/bot-users" : null,
         fetcher,
@@ -104,6 +105,30 @@ export default function BotUsersPage() {
         if (me?.role !== "admin" || activeSection !== "users") return;
         void axios.post("/api/bot-users/view", { section: "users" }).catch(() => {});
     }, [activeSection, me?.role]);
+
+    const freezeToggle = async (u: BotLinkedUser, freeze: boolean) => {
+        if (!confirm(`${freeze ? "Заморозить" : "Разморозить"} @${u.username}?`)) return;
+        try {
+            await axios.patch(`/api/bot-users/users/${u.id}`, {
+                action: freeze ? "freeze" : "unfreeze",
+            });
+            mutate();
+        } catch (e: unknown) {
+            const msg = axios.isAxiosError(e) ? e.response?.data?.error : "Operation failed";
+            alert(typeof msg === "string" ? msg : "Operation failed");
+        }
+    };
+
+    const deleteBotUser = async (u: BotLinkedUser) => {
+        if (!confirm(`Удалить @${u.username} полностью?`)) return;
+        try {
+            await axios.delete(`/api/bot-users/users/${u.id}`);
+            mutate();
+        } catch (e: unknown) {
+            const msg = axios.isAxiosError(e) ? e.response?.data?.error : "Delete failed";
+            alert(typeof msg === "string" ? msg : "Delete failed");
+        }
+    };
 
     const sendBroadcast = async () => {
         if (!broadcastMessage.trim()) {
@@ -318,7 +343,7 @@ export default function BotUsersPage() {
                                     <table className="table-dashboard">
                                         <thead>
                                             <tr>
-                                                <th>Username</th><th>Role</th><th>telegramUserId</th><th>chatId</th><th>Status</th><th>Linked</th>
+                                                <th>Username</th><th>Role</th><th>telegramUserId</th><th>chatId</th><th>Status</th><th>Linked</th><th>Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -330,6 +355,52 @@ export default function BotUsersPage() {
                                                     <td>{u.telegramChatId || "—"}</td>
                                                     <td>{u.isActive ? "Active" : "Frozen"}</td>
                                                     <td>{u.botLinkedAt ? new Date(u.botLinkedAt).toLocaleString() : "—"}</td>
+                                                    <td>
+                                                        {u.role !== "admin" && (
+                                                            <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap" }}>
+                                                                <Link
+                                                                    href={`/dashboard/users/${u.id}`}
+                                                                    className="btn-link"
+                                                                    style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontSize: "0.78rem", padding: "0.25rem 0.45rem" }}
+                                                                    title="Редактировать каналы и ключевые слова"
+                                                                >
+                                                                    <Pencil size={13} /> Edit
+                                                                </Link>
+                                                                {u.isActive ? (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => freezeToggle(u, true)}
+                                                                        title="Заморозить"
+                                                                        style={{ background: "none", border: "none", color: "rgba(255,159,10,0.9)", cursor: "pointer", display: "flex" }}
+                                                                    >
+                                                                        <Pause size={14} />
+                                                                    </button>
+                                                                ) : (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => freezeToggle(u, false)}
+                                                                        title="Разморозить"
+                                                                        style={{ background: "none", border: "none", color: "rgba(0,255,117,0.9)", cursor: "pointer", display: "flex" }}
+                                                                    >
+                                                                        <Play size={14} />
+                                                                    </button>
+                                                                )}
+                                                                {u.id !== me?.id && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => deleteBotUser(u)}
+                                                                        title="Удалить"
+                                                                        style={{ background: "none", border: "none", color: "rgba(255,69,69,0.9)", cursor: "pointer", display: "flex" }}
+                                                                    >
+                                                                        <Trash2 size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {u.role === "admin" && (
+                                                            <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.35)" }}>—</span>
+                                                        )}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

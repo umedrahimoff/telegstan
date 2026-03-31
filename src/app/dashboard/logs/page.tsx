@@ -52,6 +52,11 @@ const ACTION_LABELS: Record<string, string> = {
     global_keyword_edit: "Global keyword edited",
     global_keyword_remove: "Global keyword removed",
     settings_change: "Settings changed",
+    bot_user_freeze: "Bot user frozen",
+    bot_user_unfreeze: "Bot user unfrozen",
+    bot_user_delete: "Bot user deleted",
+    bot_users_list_view: "Bot Users data loaded",
+    bot_users_section_view: "Bot Users section opened",
     "bot_users_*": "Bot Users (all events)",
 };
 
