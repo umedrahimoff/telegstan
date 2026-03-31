@@ -136,7 +136,7 @@ export async function runChannelBackfill(
                             const contentPreview = contentPlain.length > 400 ? contentPlain.slice(0, 400) + "…" : contentPlain;
                             const contentTranslated = await translateToRussian(contentPreview);
                             const notificationText = [
-                                "🔔 Telegstan Backfill Alert",
+                                "🔔 TGStan Backfill Alert",
                                 "",
                                 `📍 Source: ${channelName}`,
                                 `🔑 Keyword: ${kw}`,
@@ -208,7 +208,7 @@ export async function runChannelBackfill(
                             const contentPreview = contentPlain.length > 400 ? contentPlain.slice(0, 400) + "…" : contentPlain;
                             const contentTranslated = await translateToRussian(contentPreview);
                             const notificationText = [
-                                "🔔 Telegstan Global Backfill Alert",
+                                "🔔 TGStan Global Backfill Alert",
                                 "",
                                 `📍 Source: ${channelName}`,
                                 `🔑 Keyword: ${gk.text}`,

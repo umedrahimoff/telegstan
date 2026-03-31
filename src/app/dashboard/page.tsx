@@ -155,7 +155,7 @@ export default function Dashboard() {
         <div className="animate-fade" style={{ width: "100%" }}>
             <div style={{ marginBottom: "1.5rem" }}>
                 <h1 style={{ fontSize: "1.75rem", fontWeight: 800, marginBottom: "0.25rem" }}>Overview</h1>
-                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.9rem" }}>Performance overview of your Telegstan monitoring network.</p>
+                <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.9rem" }}>Performance overview of your TGStan monitoring network.</p>
             </div>
 
             {stats.periodComparison && stats.periodComparison.previous > 0 && (

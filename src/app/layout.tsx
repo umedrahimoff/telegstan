@@ -13,7 +13,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Telegstan | Elite Telegram Monitoring",
+  title: "TGStan | Elite Telegram Monitoring",
   description: "Real-time Telegram channel monitoring from a human perspective.",
 };
 

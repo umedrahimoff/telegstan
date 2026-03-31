@@ -8,7 +8,7 @@ export default function Home() {
       <div className="landing-card">
         <div className="landing-hero">
           <span className="landing-badge">Elite Telegram Monitoring</span>
-          <h1 className="landing-title">Telegstan</h1>
+          <h1 className="landing-title">TGStan</h1>
           <p className="landing-desc">
             Track channels, set keywords, and get instant alerts in Telegram. Supports English and Russian.
           </p>

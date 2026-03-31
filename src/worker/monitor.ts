@@ -16,7 +16,7 @@ const tg = TelegramManager.getInstance();
 let catchUpBackfillBusy = false;
 
 async function startMonitoring() {
-    console.log("🚀 Starting Telegstan Monitor...");
+    console.log("🚀 Starting TGStan Monitor...");
     console.log(process.env.DEEPL_API_KEY ? "✅ DeepL translation enabled" : "⚠️ DEEPL_API_KEY not set — alerts will be sent without translation");
 
     // 1. Get Session from DB
@@ -267,7 +267,7 @@ async function startMonitoring() {
         const contentPreview = contentPlain.length > 400 ? contentPlain.slice(0, 400) + "…" : contentPlain;
         const contentTranslated = await translateToRussian(contentPreview);
         const notificationText = [
-            "🔔 Telegstan Alert",
+            "🔔 TGStan Alert",
             "",
             `📍 Source: ${channelName}`,
             `🔑 Keyword: ${keyword}`,
@@ -339,7 +339,7 @@ async function startMonitoring() {
                 const contentPreview = contentPlain.length > 400 ? contentPlain.slice(0, 400) + "…" : contentPlain;
                 const contentTranslated = await translateToRussian(contentPreview);
                 const notificationText = [
-                    "🔔 Telegstan Global Alert",
+                    "🔔 TGStan Global Alert",
                     "",
                     `📍 Source: ${channelName}`,
                     `🔑 Keyword: ${gk.text}`,
@@ -384,7 +384,7 @@ async function startMonitoring() {
     // Process pending test notifications (queued when API gets AUTH_KEY_DUPLICATED)
     const PENDING_TEST_KEY = "pending_test_notification";
     const TEST_MSG = [
-        "✅ <b>Telegstan Test Message</b>",
+        "✅ <b>TGStan Test Message</b>",
         "",
         "Notification service is working correctly.",
         "",

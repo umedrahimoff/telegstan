@@ -56,7 +56,7 @@ export async function POST() {
 
             await prisma.session.deleteMany({});
             await prisma.session.create({
-                data: { phoneNumber: "telegstan_qr", sessionStr, isActive: true },
+                data: { phoneNumber: "tgstan_qr", sessionStr, isActive: true },
             });
 
             setPendingReauth({ status: "done" });

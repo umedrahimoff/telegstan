@@ -10,7 +10,7 @@ const apiHash = process.env.TELEGRAM_API_HASH || "";
 
 const PENDING_TEST_KEY = "pending_test_notification";
 const TEST_MESSAGE = [
-    "✅ <b>Telegstan Test Message</b>",
+    "✅ <b>TGStan Test Message</b>",
     "",
     "Notification service is working correctly.",
     "",

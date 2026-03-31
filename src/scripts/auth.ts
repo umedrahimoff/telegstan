@@ -12,7 +12,7 @@ const apiId = parseInt(process.env.TELEGRAM_API_ID || "0");
 const apiHash = process.env.TELEGRAM_API_HASH || "";
 
 async function run() {
-    console.log("🚀 Starting Telegram Auth for Telegstan...");
+    console.log("🚀 Starting Telegram Auth for TGStan...");
 
     if (!apiId || !apiHash) {
         console.error("❌ Error: TELEGRAM_API_ID or TELEGRAM_API_HASH is missing in .env");
@@ -48,7 +48,7 @@ async function run() {
         data: { phoneNumber: normalized, sessionStr, isActive: true },
     });
 
-    console.log("💾 Session saved to database. Your Telegstan monitor is now ready to start!");
+    console.log("💾 Session saved to database. Your TGStan monitor is now ready to start!");
     process.exit(0);
 }
 

@@ -73,7 +73,7 @@ export async function POST(req: Request) {
 
         await client.connect();
         const loginMsg = [
-            "🔐 <b>Telegstan Login Code</b>",
+            "🔐 <b>TGStan Login Code</b>",
             "",
             `Your code is: <code>${code}</code>`,
             "",
