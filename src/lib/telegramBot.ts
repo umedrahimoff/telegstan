@@ -73,3 +73,33 @@ export async function getTelegramBotUpdates(offset?: number): Promise<TelegramBo
     }
     return Array.isArray(data.result) ? data.result : [];
 }
+
+export async function getTelegramBotMe(): Promise<{ id: number; username?: string }> {
+    const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+    if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
+
+    const res = await fetch(`${TELEGRAM_BOT_API}/bot${token}/getMe`);
+    const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        result?: { id: number; username?: string };
+        description?: string;
+    };
+    if (!res.ok || !data.ok || !data.result) {
+        throw new Error(data.description || `Bot getMe failed (${res.status})`);
+    }
+    return data.result;
+}
+
+export async function deleteTelegramBotWebhook(dropPending = false): Promise<void> {
+    const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+    if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
+
+    const qs = new URLSearchParams({
+        drop_pending_updates: dropPending ? "true" : "false",
+    });
+    const res = await fetch(`${TELEGRAM_BOT_API}/bot${token}/deleteWebhook?${qs.toString()}`);
+    const data = (await res.json().catch(() => ({}))) as { ok?: boolean; description?: string };
+    if (!res.ok || !data.ok) {
+        throw new Error(data.description || `Bot deleteWebhook failed (${res.status})`);
+    }
+}

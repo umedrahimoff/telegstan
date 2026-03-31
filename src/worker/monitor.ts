@@ -10,7 +10,13 @@ import { utils } from "telegram";
 import { CATCH_UP_BACKFILL_KEY, type CatchUpBackfillQueue } from "../lib/catchUpBackfillQueue";
 import { runChannelBackfill } from "../lib/channelBackfillRun";
 import { deliverAlertMessage } from "../lib/alertDelivery";
-import { getTelegramBotUpdates, hasTelegramBotToken, sendViaTelegramBotChatId } from "../lib/telegramBot";
+import {
+    deleteTelegramBotWebhook,
+    getTelegramBotMe,
+    getTelegramBotUpdates,
+    hasTelegramBotToken,
+    sendViaTelegramBotChatId,
+} from "../lib/telegramBot";
 
 const prisma = new PrismaClient();
 const tg = TelegramManager.getInstance();
@@ -533,6 +539,14 @@ async function startMonitoring() {
 
     // Bind bot users, process registration/subscription and channel suggestions.
     if (hasTelegramBotToken()) {
+        try {
+            const me = await getTelegramBotMe();
+            await deleteTelegramBotWebhook(false);
+            console.log(`🤖 Bot polling enabled for @${me.username || me.id}`);
+        } catch (e) {
+            console.warn("Bot init failed:", (e as Error).message);
+        }
+
         setInterval(async () => {
             try {
                 const offsetRow = await prisma.appSetting.findUnique({ where: { key: BOT_UPDATES_OFFSET_KEY } });
@@ -818,7 +832,7 @@ async function startMonitoring() {
                     update: { value: String(nextOffset) },
                 });
             } catch (e) {
-                console.warn("Bot /start polling error:", (e as Error).message);
+                console.warn("Bot polling error:", (e as Error).message);
             }
         }, 10_000);
     }
