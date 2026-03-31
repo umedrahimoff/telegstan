@@ -511,14 +511,22 @@ async function startMonitoring() {
             console.warn("Bot init failed:", (e as Error).message);
         }
 
+        let botUpdatesOffset: number | undefined;
+        const botOffsetRow = await prisma.appSetting.findUnique({ where: { key: BOT_UPDATES_OFFSET_KEY } });
+        if (botOffsetRow?.value) {
+            const n = parseInt(botOffsetRow.value, 10);
+            if (Number.isFinite(n)) botUpdatesOffset = n;
+        }
+
         const pollBotUpdatesOnce = async () => {
             try {
-                const offsetRow = await prisma.appSetting.findUnique({ where: { key: BOT_UPDATES_OFFSET_KEY } });
-                const offset = offsetRow?.value ? parseInt(offsetRow.value, 10) : undefined;
-                const updates = await getTelegramBotUpdates(Number.isFinite(offset) ? offset : undefined, 25);
+                const updates = await getTelegramBotUpdates(
+                    Number.isFinite(botUpdatesOffset) ? botUpdatesOffset : undefined,
+                    25
+                );
                 if (updates.length === 0) return;
 
-                let nextOffset = offset ?? 0;
+                let nextOffset = botUpdatesOffset ?? 0;
                 for (const u of updates) {
                     nextOffset = Math.max(nextOffset, u.update_id + 1);
                     const msg = u.message;
@@ -537,23 +545,24 @@ async function startMonitoring() {
                         continue;
                     }
 
-                    await setBotChat(username, chatId);
+                    void setBotChat(username, chatId).catch(() => {});
 
                     const isAlreadySubscribed = async () => {
-                        const linkedUser = await prisma.appUser.findFirst({
-                            where: {
-                                username,
-                                isActive: true,
-                                OR: [{ telegramUserId }, { telegramChatId: chatId }],
-                            },
-                            select: { id: true },
-                        });
-                        if (linkedUser) return true;
-                        const approvedRequest = await prisma.botSubscriptionRequest.findFirst({
-                            where: { telegramUserId, status: "approved" },
-                            select: { id: true },
-                        });
-                        return Boolean(approvedRequest);
+                        const [linkedUser, approvedRequest] = await Promise.all([
+                            prisma.appUser.findFirst({
+                                where: {
+                                    username,
+                                    isActive: true,
+                                    OR: [{ telegramUserId }, { telegramChatId: chatId }],
+                                },
+                                select: { id: true },
+                            }),
+                            prisma.botSubscriptionRequest.findFirst({
+                                where: { telegramUserId, status: "approved" },
+                                select: { id: true },
+                            }),
+                        ]);
+                        return Boolean(linkedUser || approvedRequest);
                     };
 
                     if (text.startsWith("/start")) {
@@ -577,6 +586,15 @@ async function startMonitoring() {
                             ).catch(() => {});
                             continue;
                         }
+                        await sendViaTelegramBotChatId(
+                            msg.chat.id,
+                            [
+                                "👋 Добро пожаловать в TGStan.",
+                                "Для доступа заполни короткую анкету.",
+                                "",
+                                "Введи имя:",
+                            ].join("\n")
+                        ).catch(() => {});
                         await prisma.botRegistrationState.upsert({
                             where: { telegramUserId },
                             create: {
@@ -596,15 +614,6 @@ async function startMonitoring() {
                                 email: null,
                             },
                         });
-                        await sendViaTelegramBotChatId(
-                            msg.chat.id,
-                            [
-                                "👋 Добро пожаловать в TGStan.",
-                                "Для доступа заполни короткую анкету.",
-                                "",
-                                "Введи имя:",
-                            ].join("\n")
-                        ).catch(() => {});
                         console.log(`🤖 Registration started for @${username}`);
                         continue;
                     }
@@ -718,6 +727,7 @@ async function startMonitoring() {
                     ).catch(() => {});
                 }
 
+                botUpdatesOffset = nextOffset;
                 await prisma.appSetting.upsert({
                     where: { key: BOT_UPDATES_OFFSET_KEY },
                     create: { key: BOT_UPDATES_OFFSET_KEY, value: String(nextOffset) },
@@ -731,8 +741,6 @@ async function startMonitoring() {
         const pollBotUpdatesLoop = async () => {
             while (true) {
                 await pollBotUpdatesOnce();
-                // tiny pause only after each long-poll cycle
-                await new Promise((r) => setTimeout(r, 150));
             }
         };
         void pollBotUpdatesLoop();
