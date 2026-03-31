@@ -6,9 +6,16 @@ export async function GET() {
     const admin = await requireAdmin();
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const [requests, users] = await Promise.all([
+    const [requests, suggestions, users] = await Promise.all([
         prisma.botSubscriptionRequest.findMany({
             orderBy: [{ status: "asc" }, { requestedAt: "desc" }],
+            take: 300,
+            include: {
+                reviewedBy: { select: { id: true, username: true } },
+            },
+        }),
+        prisma.botChannelSuggestion.findMany({
+            orderBy: [{ status: "asc" }, { createdAt: "desc" }],
             take: 300,
             include: {
                 reviewedBy: { select: { id: true, username: true } },
@@ -36,6 +43,7 @@ export async function GET() {
 
     return NextResponse.json({
         requests,
+        suggestions,
         users,
     });
 }

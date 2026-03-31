@@ -17,6 +17,10 @@ const tg = TelegramManager.getInstance();
 let catchUpBackfillBusy = false;
 const BOT_CHAT_MAP_KEY = "bot_user_chat_map";
 const BOT_UPDATES_OFFSET_KEY = "bot_updates_offset";
+const BOT_MENU = {
+    keyboard: [[{ text: "/subscribe" }, { text: "📡 Предложить канал" }]],
+    resize_keyboard: true,
+};
 
 async function startMonitoring() {
     console.log("🚀 Starting TGStan Monitor...");
@@ -527,7 +531,7 @@ async function startMonitoring() {
         }
     }, 20_000);
 
-    // Bind bot users and process subscription requests (/start, /subscribe).
+    // Bind bot users, process registration/subscription and channel suggestions.
     if (hasTelegramBotToken()) {
         setInterval(async () => {
             try {
@@ -542,7 +546,8 @@ async function startMonitoring() {
                     const msg = u.message;
                     if (!msg?.text || !msg?.chat?.id) continue;
                     const text = msg.text.trim();
-                    if (!text.startsWith("/start") && !text.startsWith("/subscribe")) continue;
+                    const telegramUserId = String(msg.from?.id ?? "");
+                    if (!telegramUserId) continue;
 
                     const username = (msg.from?.username || "").trim().replace(/^@/, "").toLowerCase();
                     if (!username) {
@@ -563,15 +568,157 @@ async function startMonitoring() {
                                 "",
                                 `@${username}, чат привязан.`,
                                 "Чтобы получать оповещения, отправь: /subscribe",
+                                "Кнопка «📡 Предложить канал» — для предложения новых каналов.",
                             ].join("\n"),
-                            "HTML"
+                            "HTML",
+                            BOT_MENU
                         ).catch(() => {});
                         console.log(`🤖 Bot linked chat_id for @${username}`);
                         continue;
                     }
 
-                    const telegramUserId = String(msg.from?.id ?? "");
-                    if (!telegramUserId) continue;
+                    if (text === "📡 Предложить канал" || text.startsWith("/suggest_channel")) {
+                        const raw = text.startsWith("/suggest_channel")
+                            ? text.replace("/suggest_channel", "").trim()
+                            : "";
+                        if (!raw) {
+                            await sendViaTelegramBotChatId(
+                                msg.chat.id,
+                                "Отправь канал в формате @username или ссылкой https://t.me/...",
+                                undefined,
+                                BOT_MENU
+                            ).catch(() => {});
+                            continue;
+                        }
+                        const suggestion = raw.slice(0, 200);
+                        await prisma.botChannelSuggestion.create({
+                            data: {
+                                telegramUserId,
+                                telegramUsername: username,
+                                chatId: String(msg.chat.id),
+                                channelInput: suggestion,
+                            },
+                        });
+                        await sendViaTelegramBotChatId(
+                            msg.chat.id,
+                            "✅ Предложение канала отправлено администратору.",
+                            undefined,
+                            BOT_MENU
+                        ).catch(() => {});
+                        const admins = await prisma.appUser.findMany({
+                            where: { role: "admin", isActive: true, canAccessAdmin: true },
+                            select: { username: true },
+                        });
+                        const adminMsg = [
+                            "📡 TGStan: новое предложение канала",
+                            `От: @${username}`,
+                            `Канал: ${suggestion}`,
+                            "",
+                            "Смотри Dashboard → Bot Users.",
+                        ].join("\n");
+                        for (const a of admins) {
+                            await tg.sendMessage(a.username, adminMsg).catch(() => {});
+                        }
+                        continue;
+                    }
+
+                    const reg = await prisma.botRegistrationState.findUnique({
+                        where: { telegramUserId },
+                    });
+
+                    if (reg && !text.startsWith("/subscribe")) {
+                        const val = text.slice(0, 120).trim();
+                        if (!val) continue;
+                        if (reg.step === "first_name") {
+                            await prisma.botRegistrationState.update({
+                                where: { telegramUserId },
+                                data: { firstName: val, step: "last_name", chatId: String(msg.chat.id), telegramUsername: username },
+                            });
+                            await sendViaTelegramBotChatId(msg.chat.id, "Введи фамилию:", undefined, BOT_MENU).catch(() => {});
+                            continue;
+                        }
+                        if (reg.step === "last_name") {
+                            await prisma.botRegistrationState.update({
+                                where: { telegramUserId },
+                                data: { lastName: val, step: "city", chatId: String(msg.chat.id), telegramUsername: username },
+                            });
+                            await sendViaTelegramBotChatId(msg.chat.id, "Введи город:", undefined, BOT_MENU).catch(() => {});
+                            continue;
+                        }
+                        if (reg.step === "city") {
+                            await prisma.botRegistrationState.update({
+                                where: { telegramUserId },
+                                data: { city: val, step: "phone", chatId: String(msg.chat.id), telegramUsername: username },
+                            });
+                            await sendViaTelegramBotChatId(msg.chat.id, "Введи номер телефона:", undefined, BOT_MENU).catch(() => {});
+                            continue;
+                        }
+                        if (reg.step === "phone") {
+                            await prisma.botRegistrationState.update({
+                                where: { telegramUserId },
+                                data: { phone: val, step: "email", chatId: String(msg.chat.id), telegramUsername: username },
+                            });
+                            await sendViaTelegramBotChatId(
+                                msg.chat.id,
+                                "Введи email (зарегистрированный в Stanbase):",
+                                undefined,
+                                BOT_MENU
+                            ).catch(() => {});
+                            continue;
+                        }
+                        if (reg.step === "email") {
+                            const state = await prisma.botRegistrationState.update({
+                                where: { telegramUserId },
+                                data: { email: val, chatId: String(msg.chat.id), telegramUsername: username },
+                            });
+
+                            const existingPending = await prisma.botSubscriptionRequest.findFirst({
+                                where: { telegramUserId, status: "pending" },
+                            });
+                            if (!existingPending) {
+                                const request = await prisma.botSubscriptionRequest.create({
+                                    data: {
+                                        telegramUserId,
+                                        telegramUsername: username,
+                                        chatId: String(msg.chat.id),
+                                        firstName: state.firstName,
+                                        lastName: state.lastName,
+                                        city: state.city,
+                                        phone: state.phone,
+                                        email: state.email,
+                                        status: "pending",
+                                    },
+                                });
+                                const admins = await prisma.appUser.findMany({
+                                    where: { role: "admin", isActive: true, canAccessAdmin: true },
+                                    select: { username: true },
+                                });
+                                const adminMsg = [
+                                    "🆕 TGStan: заявка на подписку (новый пользователь)",
+                                    `User: @${username}`,
+                                    `Имя: ${state.firstName ?? "-"}`,
+                                    `Фамилия: ${state.lastName ?? "-"}`,
+                                    `Город: ${state.city ?? "-"}`,
+                                    `Телефон: ${state.phone ?? "-"}`,
+                                    `Email (Stanbase, ручная проверка): ${state.email ?? "-"}`,
+                                    `requestId: ${request.id}`,
+                                    "",
+                                    "Одобри/отклони в Dashboard → Bot Users.",
+                                ].join("\n");
+                                for (const a of admins) {
+                                    await tg.sendMessage(a.username, adminMsg).catch(() => {});
+                                }
+                            }
+                            await prisma.botRegistrationState.delete({ where: { telegramUserId } }).catch(() => {});
+                            await sendViaTelegramBotChatId(
+                                msg.chat.id,
+                                "📨 Регистрация принята. Заявка отправлена администратору, email в Stanbase будет проверен вручную.",
+                                undefined,
+                                BOT_MENU
+                            ).catch(() => {});
+                            continue;
+                        }
+                    }
 
                     const existingPending = await prisma.botSubscriptionRequest.findFirst({
                         where: { telegramUserId, status: "pending" },
@@ -580,6 +727,46 @@ async function startMonitoring() {
                         await sendViaTelegramBotChatId(
                             msg.chat.id,
                             "🕒 Заявка уже отправлена и ожидает решения администратора."
+                        ).catch(() => {});
+                        continue;
+                    }
+
+                    const knownUser = await prisma.appUser.findUnique({
+                        where: { username },
+                        select: { id: true, username: true },
+                    });
+                    if (!text.startsWith("/subscribe")) continue;
+
+                    if (!knownUser) {
+                        await prisma.botRegistrationState.upsert({
+                            where: { telegramUserId },
+                            create: {
+                                telegramUserId,
+                                telegramUsername: username,
+                                chatId: String(msg.chat.id),
+                                step: "first_name",
+                            },
+                            update: {
+                                telegramUsername: username,
+                                chatId: String(msg.chat.id),
+                                step: "first_name",
+                                firstName: null,
+                                lastName: null,
+                                city: null,
+                                phone: null,
+                                email: null,
+                            },
+                        });
+                        await sendViaTelegramBotChatId(
+                            msg.chat.id,
+                            [
+                                "👋 Ты новый пользователь для TGStan.",
+                                "Для заявки заполним краткую анкету.",
+                                "",
+                                "Введи имя:",
+                            ].join("\n"),
+                            undefined,
+                            BOT_MENU
                         ).catch(() => {});
                         continue;
                     }
@@ -601,7 +788,8 @@ async function startMonitoring() {
                             "Твоя заявка передана администратору.",
                             "Ожидай подтверждение в этом боте.",
                         ].join("\n"),
-                        "HTML"
+                        "HTML",
+                        BOT_MENU
                     ).catch(() => {});
 
                     // Notify admins via user account (as requested).

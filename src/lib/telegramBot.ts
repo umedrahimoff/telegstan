@@ -2,6 +2,7 @@ const TELEGRAM_BOT_API = "https://api.telegram.org";
 
 type BotParseMode = "HTML" | "MarkdownV2";
 type ChatId = string | number;
+type BotReplyMarkup = Record<string, unknown>;
 
 export function hasTelegramBotToken(): boolean {
     return Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim());
@@ -22,7 +23,8 @@ export async function sendViaTelegramBot(
 export async function sendViaTelegramBotChatId(
     chatId: ChatId,
     text: string,
-    parseMode?: BotParseMode
+    parseMode?: BotParseMode,
+    replyMarkup?: BotReplyMarkup
 ): Promise<void> {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
     if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
@@ -34,6 +36,7 @@ export async function sendViaTelegramBotChatId(
             chat_id: chatId,
             text,
             ...(parseMode ? { parse_mode: parseMode } : {}),
+            ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
             disable_web_page_preview: true,
         }),
     });

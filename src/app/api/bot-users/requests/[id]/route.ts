@@ -29,6 +29,25 @@ export async function POST(
     }
 
     if (action === "approve") {
+        const existingApproved = await prisma.botSubscriptionRequest.findFirst({
+            where: {
+                telegramUserId: requestRow.telegramUserId,
+                status: "approved",
+                id: { not: requestRow.id },
+            },
+        });
+        if (existingApproved) {
+            await prisma.botSubscriptionRequest.update({
+                where: { id: existingApproved.id },
+                data: {
+                    status: "rejected",
+                    reviewNote: "Replaced by newer approved request",
+                    reviewedAt: new Date(),
+                    reviewedByUserId: admin.id,
+                },
+            });
+        }
+
         const username = (requestRow.telegramUsername || "").trim().replace(/^@/, "").toLowerCase();
         if (!username) {
             return NextResponse.json({ error: "User has no telegram username. Ask them to set @username and resubmit." }, { status: 400 });

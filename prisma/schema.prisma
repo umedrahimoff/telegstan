@@ -103,6 +103,7 @@ model AppUser {
   userChannels   UserChannel[]
   userKeywords   UserKeyword[]
   reviewedBotRequests BotSubscriptionRequest[] @relation("BotRequestReviewer")
+  reviewedChannelSuggestions BotChannelSuggestion[] @relation("BotSuggestionReviewer")
 }
 
 model UserChannel {
@@ -186,6 +187,11 @@ model BotSubscriptionRequest {
   telegramUserId   String
   telegramUsername String?
   chatId           String
+  firstName        String?
+  lastName         String?
+  city             String?
+  phone            String?
+  email            String?
   status           String   @default("pending") // pending | approved | rejected
   reviewNote       String?
   requestedAt      DateTime @default(now())
@@ -196,4 +202,35 @@ model BotSubscriptionRequest {
   @@index([status, requestedAt])
   @@index([telegramUsername])
   @@unique([telegramUserId, status])
+}
+
+model BotRegistrationState {
+  id               String   @id @default(cuid())
+  telegramUserId   String   @unique
+  telegramUsername String?
+  chatId           String
+  step             String   // first_name | last_name | city | phone | email
+  firstName        String?
+  lastName         String?
+  city             String?
+  phone            String?
+  email            String?
+  updatedAt        DateTime @updatedAt
+  createdAt        DateTime @default(now())
+}
+
+model BotChannelSuggestion {
+  id               String   @id @default(cuid())
+  telegramUserId   String
+  telegramUsername String?
+  chatId           String
+  channelInput     String
+  status           String   @default("pending") // pending | reviewed
+  reviewNote       String?
+  createdAt        DateTime @default(now())
+  reviewedAt       DateTime?
+  reviewedByUserId String?
+  reviewedBy       AppUser? @relation("BotSuggestionReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
 }
