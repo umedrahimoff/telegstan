@@ -293,10 +293,10 @@ export default function SettingsPage() {
                     <div className="card" style={{ padding: '1rem', marginTop: '1rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                             <Clock size={18} color="#00A3FF" />
-                            <h2 style={{ fontSize: '1rem', fontWeight: 800 }}>Догон по каналам (catch-up)</h2>
+                            <h2 style={{ fontSize: '1rem', fontWeight: 800 }}>Channel Catch-Up Queue</h2>
                         </div>
                         <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem' }}>
-                            Все активные каналы по очереди на <b>Railway-воркере</b>: история за период, пауза между каналами ~ (выбранные минуты ÷ число каналов), минимум 8 с. Не грузит Telegram разом.
+                            All active channels are queued on the <b>Railway worker</b>: history is processed per channel with a gap of about (selected minutes / number of channels), minimum 8s, to avoid Telegram spikes.
                         </p>
                         {catchUpData?.queue && !catchUpData.queue.done && (
                             <div
@@ -310,13 +310,13 @@ export default function SettingsPage() {
                                     color: 'rgba(255,255,255,0.85)',
                                 }}
                             >
-                                В очереди: канал {catchUpData.queue.index + 1} / {catchUpData.queue.totalChannels}
-                                {catchUpData.queue.currentChannelId ? ` (id ${catchUpData.queue.currentChannelId.slice(0, 8)}…)` : ""}. Пауза ~{Math.round(catchUpData.queue.gapMs / 1000)} с между каналами.
+                                In queue: channel {catchUpData.queue.index + 1} / {catchUpData.queue.totalChannels}
+                                {catchUpData.queue.currentChannelId ? ` (id ${catchUpData.queue.currentChannelId.slice(0, 8)}…)` : ""}. Gap ~{Math.round(catchUpData.queue.gapMs / 1000)}s between channels.
                             </div>
                         )}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.75rem', maxWidth: '22rem' }}>
                             <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-                                С даты
+                                From date
                                 <input
                                     type="date"
                                     value={catchUpDateFrom}
@@ -325,7 +325,7 @@ export default function SettingsPage() {
                                 />
                             </label>
                             <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-                                По дату (пусто = сейчас)
+                                To date (empty = now)
                                 <input
                                     type="date"
                                     value={catchUpDateTo}
@@ -334,7 +334,7 @@ export default function SettingsPage() {
                                 />
                             </label>
                             <label style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.6)' }}>
-                                Разнести старт каналов на ~минут
+                                Spread channel starts over ~minutes
                                 <input
                                     type="number"
                                     min={1}
@@ -347,11 +347,11 @@ export default function SettingsPage() {
                         </div>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginBottom: '0.35rem', cursor: 'pointer' }}>
                             <input type="checkbox" checked={catchUpSaveAll} onChange={(e) => setCatchUpSaveAll(e.target.checked)} style={{ accentColor: '#00A3FF' }} />
-                            Сохранять все сообщения с текстом в периоде (иначе только посты с совпадением по ключам)
+                            Save all text messages in range (otherwise only keyword-matching posts)
                         </label>
                         <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', marginBottom: '0.75rem', cursor: 'pointer' }}>
                             <input type="checkbox" checked={catchUpNotify} onChange={(e) => setCatchUpNotify(e.target.checked)} style={{ accentColor: '#00A3FF' }} />
-                            Отправлять уведомления в Telegram при совпадениях (обычно выкл. для догона)
+                            Send Telegram notifications for matches (usually off for catch-up)
                         </label>
                         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                             <button
@@ -369,11 +369,11 @@ export default function SettingsPage() {
                                             sendNotifications: catchUpNotify,
                                             saveAll: catchUpSaveAll,
                                         });
-                                        alert(data.message || "Очередь создана");
+                                        alert(data.message || "Queue created");
                                         mutateCatchUp();
                                     } catch (e: unknown) {
-                                        const msg = axios.isAxiosError(e) ? e.response?.data?.error : "Ошибка";
-                                        alert(typeof msg === "string" ? msg : "Ошибка");
+                                        const msg = axios.isAxiosError(e) ? e.response?.data?.error : "Error";
+                                        alert(typeof msg === "string" ? msg : "Error");
                                     } finally {
                                         setCatchUpLoading(false);
                                     }
@@ -392,17 +392,17 @@ export default function SettingsPage() {
                                 }}
                             >
                                 {catchUpLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                                Запустить очередь
+                                Start queue
                             </button>
                             <button
                                 type="button"
                                 onClick={async () => {
-                                    if (!confirm("Сбросить очередь catch-up?")) return;
+                                    if (!confirm("Reset catch-up queue?")) return;
                                     try {
                                         await axios.delete("/api/settings/catch-up-backfill");
                                         mutateCatchUp();
                                     } catch {
-                                        alert("Не удалось сбросить");
+                                        alert("Failed to reset queue");
                                     }
                                 }}
                                 style={{
@@ -415,7 +415,7 @@ export default function SettingsPage() {
                                     cursor: "pointer",
                                 }}
                             >
-                                Сбросить очередь
+                                Reset queue
                             </button>
                         </div>
                     </div>

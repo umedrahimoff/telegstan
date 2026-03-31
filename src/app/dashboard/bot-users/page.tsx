@@ -111,7 +111,7 @@ export default function BotUsersPage() {
     }, [activeSection, me?.role]);
 
     const freezeToggle = async (u: BotLinkedUser, freeze: boolean) => {
-        if (!confirm(`${freeze ? "Заморозить" : "Разморозить"} @${u.username}?`)) return;
+        if (!confirm(`${freeze ? "Freeze" : "Unfreeze"} @${u.username}?`)) return;
         try {
             await axios.patch(`/api/bot-users/users/${u.id}`, {
                 action: freeze ? "freeze" : "unfreeze",
@@ -124,7 +124,7 @@ export default function BotUsersPage() {
     };
 
     const deleteBotUser = async (u: BotLinkedUser) => {
-        if (!confirm(`Удалить @${u.username} полностью?`)) return;
+        if (!confirm(`Delete @${u.username} permanently?`)) return;
         try {
             await axios.delete(`/api/bot-users/users/${u.id}`);
             mutate();
@@ -136,11 +136,11 @@ export default function BotUsersPage() {
 
     const sendBroadcast = async () => {
         if (!broadcastMessage.trim()) {
-            alert("Введите текст рассылки");
+            alert("Enter broadcast text");
             return;
         }
         if (broadcastMode === "selected" && broadcastSelected.size === 0) {
-            alert("Выберите хотя бы одного пользователя");
+            alert("Select at least one user");
             return;
         }
         setBroadcastBusy(true);
@@ -170,7 +170,7 @@ export default function BotUsersPage() {
             <div style={{ marginBottom: "1.2rem" }}>
                 <h1 style={{ fontSize: "1.7rem", fontWeight: 800, marginBottom: "0.25rem" }}>Bot Users</h1>
                 <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.9rem" }}>
-                    Заявки на доступ, регистрационные данные и список пользователей бота.
+                    Access requests, registration data, and bot-linked users.
                 </p>
             </div>
 
@@ -211,7 +211,7 @@ export default function BotUsersPage() {
                                 <Bot size={16} color="#00A3FF" /> Pending Requests
                             </h2>
                             {pending.length === 0 ? (
-                                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Нет ожидающих заявок.</p>
+                                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>No pending requests.</p>
                             ) : (
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
                                     {pending.map((r) => (
@@ -221,9 +221,9 @@ export default function BotUsersPage() {
                                                     <div><b>@{r.telegramUsername || "no_username"}</b></div>
                                                     <div style={{ color: "rgba(255,255,255,0.55)" }}>telegramUserId: {r.telegramUserId}</div>
                                                     <div style={{ color: "rgba(255,255,255,0.55)" }}>chatId: {r.chatId}</div>
-                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>Имя: {r.firstName || "—"} {r.lastName || ""}</div>
-                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>Город: {r.city || "—"}</div>
-                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>Телефон: {r.phone || "—"}</div>
+                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>Name: {r.firstName || "—"} {r.lastName || ""}</div>
+                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>City: {r.city || "—"}</div>
+                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>Phone: {r.phone || "—"}</div>
                                                     <div style={{ color: "rgba(255,255,255,0.55)" }}>Email (Stanbase): {r.email || "—"}</div>
                                                     <div style={{ color: "rgba(255,255,255,0.4)" }}>requested: {new Date(r.requestedAt).toLocaleString()}</div>
                                                 </div>
@@ -231,7 +231,7 @@ export default function BotUsersPage() {
                                                     <input
                                                         value={noteById[r.id] || ""}
                                                         onChange={(e) => setNoteById((prev) => ({ ...prev, [r.id]: e.target.value }))}
-                                                        placeholder="Комментарий (optional)"
+                                                        placeholder="Comment (optional)"
                                                         className="input-field"
                                                         style={{ height: "34px", fontSize: "0.8rem" }}
                                                     />
@@ -266,16 +266,16 @@ export default function BotUsersPage() {
                         <div className="card" style={{ padding: "1rem", marginBottom: "1rem" }}>
                             <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Bot broadcast</h2>
                             <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.55)", marginBottom: "0.6rem" }}>
-                                Массовая или выборочная рассылка пользователям, привязанным к боту.
+                                Send a broadcast to all bot-linked users or to a selected subset.
                             </p>
                             <div style={{ display: "flex", gap: "0.6rem", marginBottom: "0.6rem", flexWrap: "wrap" }}>
                                 <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.85rem" }}>
                                     <input type="radio" checked={broadcastMode === "all"} onChange={() => setBroadcastMode("all")} />
-                                    Всем ({broadcastUsers.length})
+                                    All ({broadcastUsers.length})
                                 </label>
                                 <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.85rem" }}>
                                     <input type="radio" checked={broadcastMode === "selected"} onChange={() => setBroadcastMode("selected")} />
-                                    По выбору
+                                    Selected users
                                 </label>
                             </div>
                             {broadcastMode === "selected" && (
@@ -304,7 +304,7 @@ export default function BotUsersPage() {
                                 onChange={(e) => setBroadcastMessage(e.target.value)}
                                 rows={4}
                                 maxLength={4096}
-                                placeholder="Текст рассылки..."
+                                placeholder="Broadcast text..."
                                 style={{
                                     width: "100%",
                                     padding: "0.55rem 0.7rem",
@@ -322,7 +322,7 @@ export default function BotUsersPage() {
                                 className="btn-primary"
                                 style={{ fontSize: "0.85rem", padding: "0.45rem 0.8rem" }}
                             >
-                                {broadcastBusy ? "Отправка..." : "Отправить рассылку"}
+                                {broadcastBusy ? "Sending..." : "Send broadcast"}
                             </button>
                             {broadcastResult && (
                                 <div style={{ marginTop: "0.65rem", fontSize: "0.82rem" }}>
@@ -343,7 +343,7 @@ export default function BotUsersPage() {
                         <div className="card" style={{ padding: "1rem", marginBottom: "1rem" }}>
                             <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Bot-linked recipients</h2>
                             {users.length === 0 ? (
-                                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Пока нет привязанных пользователей.</p>
+                                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>No bot-linked users yet.</p>
                             ) : (
                                 <div style={{ overflowX: "auto" }}>
                                     <table className="table-dashboard">
@@ -367,7 +367,7 @@ export default function BotUsersPage() {
                                                                 <Link
                                                                     href={`/dashboard/users/${u.id}`}
                                                                     style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(0,163,255,0.35)", color: "rgba(0,163,255,0.95)", background: "rgba(0,163,255,0.12)" }}
-                                                                    title="Редактировать каналы и ключевые слова"
+                                                                    title="Edit channels and keywords"
                                                                 >
                                                                     <Pencil size={13} />
                                                                 </Link>
@@ -375,7 +375,7 @@ export default function BotUsersPage() {
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => freezeToggle(u, true)}
-                                                                        title="Заморозить"
+                                                                        title="Freeze"
                                                                         style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(255,159,10,0.35)", color: "rgba(255,159,10,0.95)", background: "rgba(255,159,10,0.12)", cursor: "pointer" }}
                                                                     >
                                                                         <Pause size={14} />
@@ -384,7 +384,7 @@ export default function BotUsersPage() {
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => freezeToggle(u, false)}
-                                                                        title="Разморозить"
+                                                                        title="Unfreeze"
                                                                         style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(0,255,117,0.35)", color: "rgba(0,255,117,0.95)", background: "rgba(0,255,117,0.12)", cursor: "pointer" }}
                                                                     >
                                                                         <Play size={14} />
@@ -394,7 +394,7 @@ export default function BotUsersPage() {
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => deleteBotUser(u)}
-                                                                        title="Удалить"
+                                                                        title="Delete"
                                                                         style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(255,69,69,0.35)", color: "rgba(255,69,69,0.95)", background: "rgba(255,69,69,0.12)", cursor: "pointer" }}
                                                                     >
                                                                         <Trash2 size={14} />
@@ -439,7 +439,7 @@ export default function BotUsersPage() {
                             <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1rem" }}>
                                 <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "0.6rem" }}>Broadcast History</h3>
                                 {broadcasts.length === 0 ? (
-                                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Пока нет отправленных рассылок.</p>
+                                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>No broadcasts sent yet.</p>
                                 ) : (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
                                         {broadcasts.map((b) => (
@@ -474,10 +474,10 @@ export default function BotUsersPage() {
                                                         fontSize: "0.8rem",
                                                     }}
                                                 >
-                                                    ← Назад
+                                                    ← Previous
                                                 </button>
                                                 <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.6)" }}>
-                                                    Стр. {historyPage} из {historyTotalPages}
+                                                    Page {historyPage} of {historyTotalPages}
                                                 </span>
                                                 <button
                                                     type="button"
@@ -493,7 +493,7 @@ export default function BotUsersPage() {
                                                         fontSize: "0.8rem",
                                                     }}
                                                 >
-                                                    Вперед →
+                                                    Next →
                                                 </button>
                                             </div>
                                         )}

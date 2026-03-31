@@ -103,13 +103,13 @@ export async function POST(
             ? [
                   "✅ <b>TGStan subscription approved</b>",
                   "",
-                  "Ты добавлен в систему уведомлений.",
-                  "После настройки каналов/ключей у админа начнёшь получать алерты.",
+                  "You have been added to the notification system.",
+                  "You will start receiving alerts after an admin configures your channels/keywords.",
               ].join("\n")
             : [
                   "❌ <b>TGStan subscription rejected</b>",
                   "",
-                  note ? `Причина: ${note}` : "Твоя заявка отклонена администратором.",
+                  note ? `Reason: ${note}` : "Your request was rejected by an administrator.",
               ].join("\n");
 
     await sendViaTelegramBotChatId(updated.chatId, msg, "HTML").catch(() => {});

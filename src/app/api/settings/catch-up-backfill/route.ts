@@ -9,7 +9,7 @@ import {
 
 const DEFAULT_DATE_FROM = "2026-03-22T00:00:00.000Z";
 
-/** GET — текущая очередь догона (обрабатывается Railway-воркером) */
+/** GET - current catch-up queue (processed by Railway worker) */
 export async function GET() {
     const admin = await requireAdmin();
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -35,8 +35,8 @@ export async function GET() {
 }
 
 /**
- * POST — поставить в очередь все активные каналы: по одному на воркере, пауза между каналами ~ totalMinutes / N.
- * Реальное чтение истории идёт на Railway (не на Vercel).
+ * POST - queue all active channels: one-by-one on worker, gap between channels ~ totalMinutes / N.
+ * Historical read runs on Railway (not on Vercel).
  */
 export async function POST(req: Request) {
     const admin = await requireAdmin();
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
             const q = JSON.parse(existing.value) as CatchUpBackfillQueue;
             if (q.index < q.channelIds.length) {
                 return NextResponse.json(
-                    { error: "Очередь уже выполняется. Дождись окончания или сбрось через DELETE." },
+                    { error: "Queue is already running. Wait until it finishes or reset it via DELETE." },
                     { status: 409 }
                 );
             }
@@ -78,7 +78,7 @@ export async function POST(req: Request) {
     const dateFrom = new Date(body.dateFrom || DEFAULT_DATE_FROM);
     const dateTo = body.dateTo ? new Date(body.dateTo) : new Date();
     if (isNaN(dateFrom.getTime()) || isNaN(dateTo.getTime()) || dateFrom >= dateTo) {
-        return NextResponse.json({ error: "Некорректный интервал dateFrom / dateTo" }, { status: 400 });
+        return NextResponse.json({ error: "Invalid dateFrom / dateTo range" }, { status: 400 });
     }
 
     const totalMinutes = typeof body.totalMinutes === "number" ? Math.min(120, Math.max(1, body.totalMinutes)) : 10;
@@ -94,7 +94,7 @@ export async function POST(req: Request) {
         .map((c) => c.id);
 
     if (channelIds.length === 0) {
-        return NextResponse.json({ error: "Нет активных каналов с username или telegramId" }, { status: 400 });
+        return NextResponse.json({ error: "No active channels with username or telegramId" }, { status: 400 });
     }
 
     const gapMs = computeGapBetweenChannelsMs(channelIds.length, totalMinutes);
@@ -120,7 +120,7 @@ export async function POST(req: Request) {
     return NextResponse.json({
         success: true,
         message:
-            `В очереди ${channelIds.length} канал(ов). Воркер на Railway обработает по одному с паузой ~${Math.round(gapMs / 1000)} с между каналами (ориентир ${totalMinutes} мин).`,
+            `${channelIds.length} channel(s) queued. Railway worker will process one-by-one with a ~${Math.round(gapMs / 1000)}s gap between channels (target ${totalMinutes} min).`,
         channelIds,
         gapMs,
         totalMinutes,
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
     });
 }
 
-/** DELETE — сбросить очередь (текущий канал может уже частично обработан) */
+/** DELETE - reset queue (current channel may already be partially processed) */
 export async function DELETE() {
     const admin = await requireAdmin();
     if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
