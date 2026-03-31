@@ -9,6 +9,7 @@ import { PrismaClient } from "@prisma/client";
 import { utils } from "telegram";
 import { CATCH_UP_BACKFILL_KEY, type CatchUpBackfillQueue } from "../lib/catchUpBackfillQueue";
 import { runChannelBackfill } from "../lib/channelBackfillRun";
+import { deliverAlertMessage } from "../lib/alertDelivery";
 
 const prisma = new PrismaClient();
 const tg = TelegramManager.getInstance();
@@ -278,7 +279,7 @@ async function startMonitoring() {
         ].join("\n");
         for (const r of recipients) {
             try {
-                await tg.sendMessage(r, notificationText);
+                await deliverAlertMessage(r, notificationText, { userSender: tg });
                 await logNotification({ type: "channel", keyword, sourceChannel: channelName, recipient: r, success: true, alertId: alert.id, contentPreview: contentTranslated, postLink });
             } catch (e: any) {
                 console.warn(`Failed to send to @${r}:`, e);
@@ -355,7 +356,7 @@ async function startMonitoring() {
                 });
                 for (const r of recipients) {
                     try {
-                        await tg.sendMessage(r, notificationText);
+                        await deliverAlertMessage(r, notificationText, { userSender: tg });
                         await logNotification({ type: "global", keyword: gk.text, sourceChannel: channelName, recipient: r, success: true, alertId: alert.id, contentPreview: contentTranslated, postLink });
                     } catch (e: any) {
                         console.warn(`Failed to send global alert to @${r}:`, e);
@@ -401,9 +402,9 @@ async function startMonitoring() {
             for (const u of usernames) {
                 try {
                     if (custom) {
-                        await tg.sendMessage(u, custom);
+                        await deliverAlertMessage(u, custom, { userSender: tg });
                     } else {
-                        await tg.sendMessage(u, TEST_MSG, "html");
+                        await deliverAlertMessage(u, TEST_MSG, { parseMode: "html", userSender: tg });
                     }
                     console.log(`📤 Test message sent to @${u}`);
                 } catch (e: any) {

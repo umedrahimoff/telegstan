@@ -4,6 +4,7 @@ import { getFilteredRecipients } from "./userRecipients";
 import { stripMarkdown } from "./telegramFormat";
 import { translateToRussian } from "./deepl";
 import { logNotification } from "./notificationLog";
+import { deliverAlertMessage } from "./alertDelivery";
 
 export type ChannelWithKeywords = Channel & { keywords: ChannelKeyword[] };
 export type GlobalKw = Pick<GlobalKeyword, "id" | "text">;
@@ -147,7 +148,7 @@ export async function runChannelBackfill(
                             ].join("\n");
                             for (const r of recipients) {
                                 try {
-                                    await tg.sendMessage(r, notificationText);
+                                    await deliverAlertMessage(r, notificationText, { userSender: tg });
                                     await logNotification({
                                         type: "channel",
                                         keyword: kw,
@@ -219,7 +220,7 @@ export async function runChannelBackfill(
                             ].join("\n");
                             for (const r of recipients) {
                                 try {
-                                    await tg.sendMessage(r, notificationText);
+                                    await deliverAlertMessage(r, notificationText, { userSender: tg });
                                     await logNotification({
                                         type: "global",
                                         keyword: gk.text,

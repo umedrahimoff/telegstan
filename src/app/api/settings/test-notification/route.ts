@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { TelegramClient } from "telegram";
 import { StringSession } from "telegram/sessions";
+import { deliverAlertMessage } from "@/lib/alertDelivery";
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID || "0");
 const apiHash = process.env.TELEGRAM_API_HASH || "";
@@ -69,9 +70,16 @@ export async function POST(req: Request) {
 
             for (const username of usernames) {
                 try {
-                    await client.sendMessage(username, {
-                        message: outbound.text,
-                        ...(outbound.parseMode ? { parseMode: outbound.parseMode } : {}),
+                    await deliverAlertMessage(username, outbound.text, {
+                        parseMode: outbound.parseMode === "html" ? "html" : undefined,
+                        userSender: {
+                            sendMessage: async (to, text, parseMode) => {
+                                await client.sendMessage(to, {
+                                    message: text,
+                                    ...(parseMode ? { parseMode } : {}),
+                                });
+                            },
+                        },
                     });
                     sent.push(username);
                 } catch (e: unknown) {
