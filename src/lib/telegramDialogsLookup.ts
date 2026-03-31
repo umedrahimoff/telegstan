@@ -1,7 +1,7 @@
 import type { TelegramClient } from "telegram";
 
-/** Per folder (main + archived); keeps API route within typical serverless time limits. */
-const DIALOG_SCAN_LIMIT = 1500;
+/** Full dialogs scan (all folders) with a practical upper bound. */
+const DIALOG_SCAN_LIMIT = 5000;
 
 function matchUsername(d: { isChannel: boolean; isGroup: boolean; entity?: unknown }, normalized: string): unknown | null {
     if (!d.isChannel && !d.isGroup) return null;
@@ -14,16 +14,13 @@ function matchUsername(d: { isChannel: boolean; isGroup: boolean; entity?: unkno
 /**
  * Find a channel/group entity by @username from already-known dialogs only.
  * Avoids contacts.ResolveUsername (used by getEntity(@username)) when Telegram returns FLOOD_WAIT.
- * Scans main chats and archived (folders 0 and 1), up to DIALOG_SCAN_LIMIT per pass.
+ * Scans all dialogs (folder: undefined), including archived/folders, up to DIALOG_SCAN_LIMIT.
  */
 export async function findEntityByUsernameInDialogs(client: TelegramClient, username: string): Promise<unknown | null> {
     const normalized = username.replace(/^@/, "").toLowerCase();
-
-    for (const archived of [false, true]) {
-        for await (const d of client.iterDialogs({ limit: DIALOG_SCAN_LIMIT, archived })) {
-            const hit = matchUsername(d, normalized);
-            if (hit) return hit;
-        }
+    for await (const d of client.iterDialogs({ limit: DIALOG_SCAN_LIMIT })) {
+        const hit = matchUsername(d, normalized);
+        if (hit) return hit;
     }
 
     return null;
