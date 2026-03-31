@@ -1,4 +1,4 @@
-import { hasTelegramBotToken, sendViaTelegramBot } from "./telegramBot";
+import { hasTelegramBotToken, sendViaTelegramBot, sendViaTelegramBotChatId } from "./telegramBot";
 
 type DeliveryMode = "bot" | "hybrid" | "user";
 
@@ -15,7 +15,7 @@ function getDeliveryMode(): DeliveryMode {
 export async function deliverAlertMessage(
     username: string,
     text: string,
-    opts?: { parseMode?: "html"; userSender?: UserSender }
+    opts?: { parseMode?: "html"; userSender?: UserSender; botChatId?: string | number | null }
 ): Promise<"bot" | "user"> {
     const mode = getDeliveryMode();
     const parseMode = opts?.parseMode === "html" ? "HTML" : undefined;
@@ -23,7 +23,11 @@ export async function deliverAlertMessage(
 
     if (mode !== "user") {
         try {
-            await sendViaTelegramBot(to, text, parseMode);
+            if (opts?.botChatId != null) {
+                await sendViaTelegramBotChatId(opts.botChatId, text, parseMode);
+            } else {
+                await sendViaTelegramBot(to, text, parseMode);
+            }
             return "bot";
         } catch (e) {
             if (mode === "bot") throw e;

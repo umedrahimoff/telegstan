@@ -9,6 +9,7 @@ const apiId = parseInt(process.env.TELEGRAM_API_ID || "0");
 const apiHash = process.env.TELEGRAM_API_HASH || "";
 
 const PENDING_TEST_KEY = "pending_test_notification";
+const BOT_CHAT_MAP_KEY = "bot_user_chat_map";
 const TEST_MESSAGE = [
     "✅ <b>TGStan Test Message</b>",
     "",
@@ -61,6 +62,16 @@ export async function POST(req: Request) {
         const session = await prisma.session.findFirst({ where: { isActive: true } });
         if (!session) return NextResponse.json({ error: "No active Telegram session" }, { status: 500 });
 
+        const botChatMapRow = await prisma.appSetting.findUnique({ where: { key: BOT_CHAT_MAP_KEY } });
+        const botChatMap = (() => {
+            if (!botChatMapRow?.value) return {} as Record<string, string>;
+            try {
+                return JSON.parse(botChatMapRow.value) as Record<string, string>;
+            } catch {
+                return {} as Record<string, string>;
+            }
+        })();
+
         try {
             const client = new TelegramClient(new StringSession(session.sessionStr), apiId, apiHash, { connectionRetries: 2 });
             await client.connect();
@@ -72,6 +83,7 @@ export async function POST(req: Request) {
                 try {
                     await deliverAlertMessage(username, outbound.text, {
                         parseMode: outbound.parseMode === "html" ? "html" : undefined,
+                        botChatId: botChatMap[username] ?? null,
                         userSender: {
                             sendMessage: async (to, text, parseMode) => {
                                 await client.sendMessage(to, {

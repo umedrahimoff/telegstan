@@ -31,7 +31,7 @@ export async function runChannelBackfill(
     channel: ChannelWithKeywords,
     globalKeywords: GlobalKw[],
     mode: Mode,
-    options: { sendNotifications: boolean; saveAll: boolean }
+    options: { sendNotifications: boolean; saveAll: boolean; botChatIdResolver?: (username: string) => string | null | undefined }
 ): Promise<{ totalScanned: number; totalMatches: number }> {
     const entity = resolveBackfillEntity(channel);
     if (entity === null) throw new Error("Channel has no username or telegramId");
@@ -42,7 +42,7 @@ export async function runChannelBackfill(
     const limit = mode.kind === "limit" ? Math.min(Math.max(1, mode.limit), 5000) : null;
     const useLimit = limit !== null;
 
-    const { sendNotifications, saveAll } = options;
+    const { sendNotifications, saveAll, botChatIdResolver } = options;
     const channelName = channel.name ?? channel.username ?? "Private/Group";
 
     let totalScanned = 0;
@@ -148,7 +148,10 @@ export async function runChannelBackfill(
                             ].join("\n");
                             for (const r of recipients) {
                                 try {
-                                    await deliverAlertMessage(r, notificationText, { userSender: tg });
+                                    await deliverAlertMessage(r, notificationText, {
+                                        userSender: tg,
+                                        botChatId: botChatIdResolver?.(r) ?? null,
+                                    });
                                     await logNotification({
                                         type: "channel",
                                         keyword: kw,
@@ -220,7 +223,10 @@ export async function runChannelBackfill(
                             ].join("\n");
                             for (const r of recipients) {
                                 try {
-                                    await deliverAlertMessage(r, notificationText, { userSender: tg });
+                                    await deliverAlertMessage(r, notificationText, {
+                                        userSender: tg,
+                                        botChatId: botChatIdResolver?.(r) ?? null,
+                                    });
                                     await logNotification({
                                         type: "global",
                                         keyword: gk.text,

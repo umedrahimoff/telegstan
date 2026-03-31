@@ -10,10 +10,13 @@ import { utils } from "telegram";
 import { CATCH_UP_BACKFILL_KEY, type CatchUpBackfillQueue } from "../lib/catchUpBackfillQueue";
 import { runChannelBackfill } from "../lib/channelBackfillRun";
 import { deliverAlertMessage } from "../lib/alertDelivery";
+import { getTelegramBotUpdates, hasTelegramBotToken, sendViaTelegramBotChatId } from "../lib/telegramBot";
 
 const prisma = new PrismaClient();
 const tg = TelegramManager.getInstance();
 let catchUpBackfillBusy = false;
+const BOT_CHAT_MAP_KEY = "bot_user_chat_map";
+const BOT_UPDATES_OFFSET_KEY = "bot_updates_offset";
 
 async function startMonitoring() {
     console.log("🚀 Starting TGStan Monitor...");
@@ -32,6 +35,31 @@ async function startMonitoring() {
     // 2. Initialize Telegram Client
     await tg.initialize(session.sessionStr);
     console.log("✅ Telegram Client Connected");
+
+    const botChatMap = new Map<string, string>();
+    const setBotChat = async (username: string, chatId: string) => {
+        botChatMap.set(username, chatId);
+        const payload = JSON.stringify(Object.fromEntries(botChatMap));
+        await prisma.appSetting.upsert({
+            where: { key: BOT_CHAT_MAP_KEY },
+            create: { key: BOT_CHAT_MAP_KEY, value: payload },
+            update: { value: payload },
+        });
+    };
+
+    const loadBotChatMap = async () => {
+        const row = await prisma.appSetting.findUnique({ where: { key: BOT_CHAT_MAP_KEY } });
+        if (!row?.value) return;
+        try {
+            const parsed = JSON.parse(row.value) as Record<string, string>;
+            for (const [u, c] of Object.entries(parsed)) {
+                if (u && c) botChatMap.set(u.toLowerCase(), String(c));
+            }
+        } catch {
+            /* ignore invalid payload */
+        }
+    };
+    await loadBotChatMap();
 
     // 3. Mutable state for channels/keywords (reloadable without restart)
     const state = {
@@ -279,7 +307,7 @@ async function startMonitoring() {
         ].join("\n");
         for (const r of recipients) {
             try {
-                await deliverAlertMessage(r, notificationText, { userSender: tg });
+                await deliverAlertMessage(r, notificationText, { userSender: tg, botChatId: botChatMap.get(r) });
                 await logNotification({ type: "channel", keyword, sourceChannel: channelName, recipient: r, success: true, alertId: alert.id, contentPreview: contentTranslated, postLink });
             } catch (e: any) {
                 console.warn(`Failed to send to @${r}:`, e);
@@ -356,7 +384,7 @@ async function startMonitoring() {
                 });
                 for (const r of recipients) {
                     try {
-                        await deliverAlertMessage(r, notificationText, { userSender: tg });
+                        await deliverAlertMessage(r, notificationText, { userSender: tg, botChatId: botChatMap.get(r) });
                         await logNotification({ type: "global", keyword: gk.text, sourceChannel: channelName, recipient: r, success: true, alertId: alert.id, contentPreview: contentTranslated, postLink });
                     } catch (e: any) {
                         console.warn(`Failed to send global alert to @${r}:`, e);
@@ -402,9 +430,9 @@ async function startMonitoring() {
             for (const u of usernames) {
                 try {
                     if (custom) {
-                        await deliverAlertMessage(u, custom, { userSender: tg });
+                        await deliverAlertMessage(u, custom, { userSender: tg, botChatId: botChatMap.get(u) });
                     } else {
-                        await deliverAlertMessage(u, TEST_MSG, { parseMode: "html", userSender: tg });
+                        await deliverAlertMessage(u, TEST_MSG, { parseMode: "html", userSender: tg, botChatId: botChatMap.get(u) });
                     }
                     console.log(`📤 Test message sent to @${u}`);
                 } catch (e: any) {
@@ -470,7 +498,11 @@ async function startMonitoring() {
                 channel,
                 globalKeywords,
                 { kind: "dateRange", dateFrom, dateTo },
-                { sendNotifications: q.sendNotifications, saveAll: q.saveAll }
+                {
+                    sendNotifications: q.sendNotifications,
+                    saveAll: q.saveAll,
+                    botChatIdResolver: (username) => botChatMap.get(username.toLowerCase()) ?? null,
+                }
             );
 
             console.log(`   → scanned ${totalScanned}, matches ${totalMatches}`);
@@ -494,6 +526,57 @@ async function startMonitoring() {
             catchUpBackfillBusy = false;
         }
     }, 20_000);
+
+    // Bind bot chat_id to username on /start and greet user.
+    if (hasTelegramBotToken()) {
+        setInterval(async () => {
+            try {
+                const offsetRow = await prisma.appSetting.findUnique({ where: { key: BOT_UPDATES_OFFSET_KEY } });
+                const offset = offsetRow?.value ? parseInt(offsetRow.value, 10) : undefined;
+                const updates = await getTelegramBotUpdates(Number.isFinite(offset) ? offset : undefined);
+                if (updates.length === 0) return;
+
+                let nextOffset = offset ?? 0;
+                for (const u of updates) {
+                    nextOffset = Math.max(nextOffset, u.update_id + 1);
+                    const msg = u.message;
+                    if (!msg?.text || !msg?.chat?.id) continue;
+                    const text = msg.text.trim();
+                    if (!text.startsWith("/start")) continue;
+
+                    const username = (msg.from?.username || "").trim().replace(/^@/, "").toLowerCase();
+                    if (!username) {
+                        await sendViaTelegramBotChatId(
+                            msg.chat.id,
+                            "⚠️ У тебя не задан username в Telegram. Установи username и нажми /start снова."
+                        ).catch(() => {});
+                        continue;
+                    }
+
+                    await setBotChat(username, String(msg.chat.id));
+                    await sendViaTelegramBotChatId(
+                        msg.chat.id,
+                        [
+                            "✅ <b>TGStan bot connected</b>",
+                            "",
+                            `@${username}, теперь уведомления будут приходить от бота.`,
+                            "Если не приходят — проверь, что этот username есть в Users админки.",
+                        ].join("\n"),
+                        "HTML"
+                    ).catch(() => {});
+                    console.log(`🤖 Bot linked chat_id for @${username}`);
+                }
+
+                await prisma.appSetting.upsert({
+                    where: { key: BOT_UPDATES_OFFSET_KEY },
+                    create: { key: BOT_UPDATES_OFFSET_KEY, value: String(nextOffset) },
+                    update: { value: String(nextOffset) },
+                });
+            } catch (e) {
+                console.warn("Bot /start polling error:", (e as Error).message);
+            }
+        }, 10_000);
+    }
 
     console.log("🟢 Listener active. Waiting for messages...");
 }
