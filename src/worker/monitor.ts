@@ -23,10 +23,6 @@ const tg = TelegramManager.getInstance();
 let catchUpBackfillBusy = false;
 const BOT_CHAT_MAP_KEY = "bot_user_chat_map";
 const BOT_UPDATES_OFFSET_KEY = "bot_updates_offset";
-const BOT_MENU = {
-    keyboard: [[{ text: "/subscribe" }, { text: "📡 Предложить канал" }]],
-    resize_keyboard: true,
-};
 
 async function startMonitoring() {
     console.log("🚀 Starting TGStan Monitor...");
@@ -585,10 +581,9 @@ async function startMonitoring() {
                                 "",
                                 `@${username}, чат привязан.`,
                                 "Чтобы получать оповещения, отправь: /subscribe",
-                                "Кнопка «📡 Предложить канал» — для предложения новых каналов.",
+                                "Чтобы предложить канал: /suggest_channel @username_kanala",
                             ].join("\n"),
-                            "HTML",
-                            BOT_MENU
+                            "HTML"
                         ).catch(() => {});
                         console.log(`🤖 Bot linked chat_id for @${username}`);
                         continue;
@@ -601,9 +596,7 @@ async function startMonitoring() {
                         if (!raw) {
                             await sendViaTelegramBotChatId(
                                 msg.chat.id,
-                                "Отправь канал в формате @username или ссылкой https://t.me/...",
-                                undefined,
-                                BOT_MENU
+                                "Отправь канал в формате /suggest_channel @username или /suggest_channel https://t.me/..."
                             ).catch(() => {});
                             continue;
                         }
@@ -618,9 +611,7 @@ async function startMonitoring() {
                         });
                         await sendViaTelegramBotChatId(
                             msg.chat.id,
-                            "✅ Предложение канала отправлено администратору.",
-                            undefined,
-                            BOT_MENU
+                            "✅ Предложение канала отправлено администратору."
                         ).catch(() => {});
                         const admins = await prisma.appUser.findMany({
                             where: { role: "admin", isActive: true, canAccessAdmin: true },
@@ -651,7 +642,7 @@ async function startMonitoring() {
                                 where: { telegramUserId },
                                 data: { firstName: val, step: "last_name", chatId: String(msg.chat.id), telegramUsername: username },
                             });
-                            await sendViaTelegramBotChatId(msg.chat.id, "Введи фамилию:", undefined, BOT_MENU).catch(() => {});
+                            await sendViaTelegramBotChatId(msg.chat.id, "Введи фамилию:").catch(() => {});
                             continue;
                         }
                         if (reg.step === "last_name") {
@@ -659,7 +650,7 @@ async function startMonitoring() {
                                 where: { telegramUserId },
                                 data: { lastName: val, step: "city", chatId: String(msg.chat.id), telegramUsername: username },
                             });
-                            await sendViaTelegramBotChatId(msg.chat.id, "Введи город:", undefined, BOT_MENU).catch(() => {});
+                            await sendViaTelegramBotChatId(msg.chat.id, "Введи город:").catch(() => {});
                             continue;
                         }
                         if (reg.step === "city") {
@@ -667,7 +658,7 @@ async function startMonitoring() {
                                 where: { telegramUserId },
                                 data: { city: val, step: "phone", chatId: String(msg.chat.id), telegramUsername: username },
                             });
-                            await sendViaTelegramBotChatId(msg.chat.id, "Введи номер телефона:", undefined, BOT_MENU).catch(() => {});
+                            await sendViaTelegramBotChatId(msg.chat.id, "Введи номер телефона:").catch(() => {});
                             continue;
                         }
                         if (reg.step === "phone") {
@@ -677,9 +668,7 @@ async function startMonitoring() {
                             });
                             await sendViaTelegramBotChatId(
                                 msg.chat.id,
-                                "Введи email (зарегистрированный в Stanbase):",
-                                undefined,
-                                BOT_MENU
+                                "Введи email (зарегистрированный в Stanbase):"
                             ).catch(() => {});
                             continue;
                         }
@@ -729,9 +718,7 @@ async function startMonitoring() {
                             await prisma.botRegistrationState.delete({ where: { telegramUserId } }).catch(() => {});
                             await sendViaTelegramBotChatId(
                                 msg.chat.id,
-                                "📨 Регистрация принята. Заявка отправлена администратору, email в Stanbase будет проверен вручную.",
-                                undefined,
-                                BOT_MENU
+                                "📨 Регистрация принята. Заявка отправлена администратору, email в Stanbase будет проверен вручную."
                             ).catch(() => {});
                             continue;
                         }
@@ -781,9 +768,7 @@ async function startMonitoring() {
                                 "Для заявки заполним краткую анкету.",
                                 "",
                                 "Введи имя:",
-                            ].join("\n"),
-                            undefined,
-                            BOT_MENU
+                            ].join("\n")
                         ).catch(() => {});
                         continue;
                     }
@@ -805,8 +790,7 @@ async function startMonitoring() {
                             "Твоя заявка передана администратору.",
                             "Ожидай подтверждение в этом боте.",
                         ].join("\n"),
-                        "HTML",
-                        BOT_MENU
+                        "HTML"
                     ).catch(() => {});
 
                     // Notify admins via user account (as requested).
