@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { logAction } from "@/lib/actionLog";
 import { formatHumanDuration, parseTelegramFloodWaitSeconds } from "@/lib/telegramFloodWait";
+import { findEntityByUsernameInDialogs } from "@/lib/telegramDialogsLookup";
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID || "0");
 const apiHash = process.env.TELEGRAM_API_HASH || "";
@@ -150,23 +151,51 @@ export async function POST(req: Request) {
 
                 // 1. Resolve the entity (get channel info)
                 let entity: any;
+                let resolvedViaDialogs = false;
                 try {
                     entity = await client.getEntity(cleanUsername);
                     console.log("Entity resolved:", entity.id?.toString(), entity.title);
                 } catch (err: unknown) {
-                    await client.disconnect();
                     const floodSec = parseTelegramFloodWaitSeconds(err);
                     if (floodSec !== null) {
-                        return NextResponse.json(
-                            {
-                                error: `Telegram rate limit: too many username lookups (contacts.ResolveUsername). Try again in ~${formatHumanDuration(floodSec)}. If the chat is already in this account’s dialogs, use Sync instead of adding by @username.`,
-                                retryAfterSeconds: floodSec,
-                            },
-                            { status: 429 }
-                        );
+                        console.warn("getEntity FloodWait, trying dialogs fallback (no ResolveUsername)...");
+                        try {
+                            const fromDialogs = await findEntityByUsernameInDialogs(client, cleanUsername);
+                            if (fromDialogs) {
+                                entity = fromDialogs;
+                                resolvedViaDialogs = true;
+                                console.log("Entity resolved via dialogs:", entity.id?.toString?.(), entity.title);
+                            }
+                        } catch (dialogErr: unknown) {
+                            const df = parseTelegramFloodWaitSeconds(dialogErr);
+                            await client.disconnect();
+                            if (df !== null) {
+                                return NextResponse.json(
+                                    {
+                                        error: `Telegram rate limit. Try again in ~${formatHumanDuration(df)}.`,
+                                        retryAfterSeconds: df,
+                                    },
+                                    { status: 429 }
+                                );
+                            }
+                            const dmsg = dialogErr instanceof Error ? dialogErr.message : String(dialogErr);
+                            return NextResponse.json({ error: dmsg }, { status: 500 });
+                        }
+                        if (!entity) {
+                            await client.disconnect();
+                            return NextResponse.json(
+                                {
+                                    error: `Telegram rate limit on username lookup. Retry in ~${formatHumanDuration(floodSec)}. If this channel is already in your chats, use Sync or try again later.`,
+                                    retryAfterSeconds: floodSec,
+                                },
+                                { status: 429 }
+                            );
+                        }
+                    } else {
+                        await client.disconnect();
+                        const msg = err instanceof Error ? err.message : String(err);
+                        return NextResponse.json({ error: `Channel not found: ${msg}` }, { status: 404 });
                     }
-                    const msg = err instanceof Error ? err.message : String(err);
-                    return NextResponse.json({ error: `Channel not found: ${msg}` }, { status: 404 });
                 }
 
                 const telegramId = entity.id.toString();
@@ -190,16 +219,17 @@ export async function POST(req: Request) {
                     });
                     await logAction({ action: "channel_add", actorId: user.id, actorUsername: user.username, targetType: "channel", targetId: existing.id, details: `${name} (@${finalUsername})` });
                     await client.disconnect();
-                    return NextResponse.json(updated);
+                    return NextResponse.json({
+                        ...updated,
+                        ...(resolvedViaDialogs ? { _resolvedVia: "dialogs" as const } : {}),
+                    });
                 }
 
                 // 3. Join the channel so the account can receive its messages
                 //    and so it appears in getDialogs() during sync
                 let joinError: string | null = null;
                 try {
-                    await client.invoke(
-                        new Api.channels.JoinChannel({ channel: cleanUsername })
-                    );
+                    await client.invoke(new Api.channels.JoinChannel({ channel: entity }));
                     console.log("✅ Joined channel:", cleanUsername);
                 } catch (err: any) {
                     // For private groups/channels JoinChannel may fail — that's OK,
@@ -223,6 +253,7 @@ export async function POST(req: Request) {
                     await client.disconnect();
                     return NextResponse.json({
                         ...channel,
+                        ...(resolvedViaDialogs ? { _resolvedVia: "dialogs" as const } : {}),
                         ...(joinError ? { _warning: `Joined with warning: ${joinError}` } : {}),
                     });
                 } catch (createErr: any) {
