@@ -173,7 +173,7 @@ export async function GET(req: Request) {
                 _count: true,
             }),
             dateFilter ? prisma.channelPost.count({ where: { createdAt: dateFilter } }) : prisma.channelPost.count(),
-            dateFilter ? prisma.channel.count({ where: { createdAt: dateFilter } }) : Promise.resolve(0),
+            dateFilter ? prisma.channel.count({ where: { createdAt: dateFilter } }) : prisma.channel.count(),
         ]);
         const totalNotif = notificationStats.reduce((s, x) => s + x._count, 0);
         const successNotif = notificationStats.find((x) => x.success)?._count ?? 0;

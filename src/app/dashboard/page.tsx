@@ -141,7 +141,7 @@ export default function Dashboard() {
     }
 
     const cards = [
-        { title: "Posts Scanned", value: (stats.totalPostsScanned ?? 0).toLocaleString(), icon: Eye, color: "#00D1FF", sparkline: stats.alertsByDay },
+        { title: "Posts Scanned", value: (stats.totalPostsScanned ?? 0).toLocaleString(), icon: Eye, color: "#00D1FF" },
         { title: "Total Alerts", value: stats.totalAlerts, icon: Bell, color: "#00A3FF", sparkline: stats.alertsByDay },
         { title: "Active Channels", value: stats.activeChannels, icon: Radio, color: "#00FF75" },
         { title: "Keywords", value: stats.activeKeywords, icon: Hash, color: "#BF5AF2" },
@@ -226,9 +226,9 @@ export default function Dashboard() {
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
                             <BarChart3 size={18} color="#00A3FF" />
-                            <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>Posts per day</h2>
+                            <h2 style={{ fontSize: "1rem", fontWeight: 700 }}>Alerts per day</h2>
                         </div>
-                        <ChartExportButton chartId="chart-week" title="Posts per day" />
+                        <ChartExportButton chartId="chart-week" title="Alerts per day" />
                     </div>
                     <div style={{ width: "100%", height: 220 }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -236,7 +236,7 @@ export default function Dashboard() {
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                                 <XAxis dataKey="day" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} />
                                 <YAxis tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} allowDecimals={false} />
-                                <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number | undefined) => [v ?? 0, "Posts"]} labelFormatter={(l) => l} />
+                                <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number | undefined) => [v ?? 0, "Alerts"]} labelFormatter={(l) => l} />
                                 <Bar dataKey="count" fill="#00A3FF" radius={[4, 4, 0, 0]} maxBarSize={32} />
                             </BarChart>
                         </ResponsiveContainer>

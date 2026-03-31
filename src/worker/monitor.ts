@@ -418,41 +418,6 @@ async function startMonitoring() {
         }
     }, 5 * 60 * 1000);
 
-    // Process pending test notifications (queued when API gets AUTH_KEY_DUPLICATED)
-    const PENDING_TEST_KEY = "pending_test_notification";
-    const TEST_MSG = [
-        "✅ <b>TGStan Test Message</b>",
-        "",
-        "Notification service is working correctly.",
-        "",
-        "<i>Sent from Settings → Test notification</i>",
-    ].join("\n");
-    setInterval(async () => {
-        try {
-            const row = await prisma.appSetting.findUnique({ where: { key: PENDING_TEST_KEY } });
-            if (!row?.value) return;
-            const data = JSON.parse(row.value) as { usernames?: string[]; customText?: string | null };
-            const usernames = Array.isArray(data?.usernames) ? data.usernames : [];
-            if (usernames.length === 0) return;
-            const custom = typeof data.customText === "string" && data.customText.trim().length > 0 ? data.customText.trim() : null;
-            await prisma.appSetting.delete({ where: { key: PENDING_TEST_KEY } });
-            for (const u of usernames) {
-                try {
-                    if (custom) {
-                        await deliverAlertMessage(u, custom, { userSender: tg, botChatId: botChatMap.get(u) });
-                    } else {
-                        await deliverAlertMessage(u, TEST_MSG, { parseMode: "html", userSender: tg, botChatId: botChatMap.get(u) });
-                    }
-                    console.log(`📤 Test message sent to @${u}`);
-                } catch (e: any) {
-                    console.warn(`Failed to send test to @${u}:`, e?.message);
-                }
-            }
-        } catch (e) {
-            console.warn("Pending test notification error:", (e as Error).message);
-        }
-    }, 30 * 1000);
-
     // Очередь догона по каналам (ставится из админки; паузы между каналами — анти-flood)
     setInterval(async () => {
         if (catchUpBackfillBusy) return;
@@ -600,19 +565,12 @@ async function startMonitoring() {
                             ).catch(() => {});
                             continue;
                         }
-                        const latestRequest = await prisma.botSubscriptionRequest.findFirst({
-                            where: { telegramUserId },
+                        const latestPendingRequest = await prisma.botSubscriptionRequest.findFirst({
+                            where: { telegramUserId, status: "pending" },
                             orderBy: { requestedAt: "desc" },
-                            select: { status: true },
+                            select: { id: true },
                         });
-                        if (latestRequest?.status === "approved") {
-                            await sendViaTelegramBotChatId(
-                                msg.chat.id,
-                                "✅ Доступ уже активирован. Ты получаешь уведомления TGStan."
-                            ).catch(() => {});
-                            continue;
-                        }
-                        if (latestRequest?.status === "pending") {
+                        if (latestPendingRequest) {
                             await sendViaTelegramBotChatId(
                                 msg.chat.id,
                                 "🕒 Твоя заявка уже отправлена и ожидает решения администратора."

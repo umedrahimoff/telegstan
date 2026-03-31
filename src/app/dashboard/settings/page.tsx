@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Key, Phone, ShieldCheck, Mail, Fingerprint, Activity, Database, Download, Trash2, AlertTriangle, Users, History, Send, Loader2, RefreshCw, Clock } from "lucide-react";
+import { Key, Phone, ShieldCheck, Mail, Fingerprint, Activity, Database, Download, Trash2, AlertTriangle, Users, History, Loader2, RefreshCw, Clock } from "lucide-react";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
 import axios from "axios";
@@ -27,10 +27,6 @@ export default function SettingsPage() {
         me?.role === "admin" ? "/api/settings" : null,
         fetcher
     );
-    const { data: users = [] } = useSWR<{ id: string; username: string; isActive: boolean }[]>(
-        me?.role === "admin" ? "/api/users" : null,
-        fetcher
-    );
     const { data: catchUpData, mutate: mutateCatchUp } = useSWR<{
         queue: null | {
             channelIds: string[];
@@ -47,16 +43,12 @@ export default function SettingsPage() {
     }>(me?.role === "admin" ? "/api/settings/catch-up-backfill" : null, fetcher, { refreshInterval: 12000 });
     const [clearing, setClearing] = useState(false);
     const [savingParser, setSavingParser] = useState(false);
-    const [testRecipients, setTestRecipients] = useState<Set<string>>(new Set());
-    const [testMessageBody, setTestMessageBody] = useState("");
-    const [sendingTest, setSendingTest] = useState(false);
     const [catchUpDateFrom, setCatchUpDateFrom] = useState("2026-03-22");
     const [catchUpDateTo, setCatchUpDateTo] = useState("");
     const [catchUpMinutes, setCatchUpMinutes] = useState(10);
     const [catchUpNotify, setCatchUpNotify] = useState(false);
     const [catchUpSaveAll, setCatchUpSaveAll] = useState(false);
     const [catchUpLoading, setCatchUpLoading] = useState(false);
-    const [testResult, setTestResult] = useState<{ sent: string[]; failed: { username: string; error: string }[]; queued?: string } | null>(null);
     const [reauthStatus, setReauthStatus] = useState<{ status: string; qrUrl?: string; hint?: string; error?: string } | null>(null);
     const [reauthPassword, setReauthPassword] = useState("");
     const [reauthPolling, setReauthPolling] = useState(false);
@@ -65,14 +57,6 @@ export default function SettingsPage() {
         if (me && me.role !== "admin") router.replace("/dashboard");
     }, [me, router]);
 
-    const activeUsers = users.filter((u) => u.isActive);
-    const testInitDone = useRef(false);
-    useEffect(() => {
-        if (activeUsers.length > 0 && !testInitDone.current) {
-            setTestRecipients(new Set(activeUsers.map((u) => u.username)));
-            testInitDone.current = true;
-        }
-    }, [activeUsers.length]);
 
     useEffect(() => {
         if (!reauthPolling) return;
@@ -452,115 +436,6 @@ export default function SettingsPage() {
                             Manage Users
                         </Link>
 
-                        <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '1rem', marginTop: '0.5rem' }}>
-                            <h3 style={{ fontSize: '0.9rem', fontWeight: 700, marginBottom: '0.5rem' }}>Test notification</h3>
-                            <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', marginBottom: '0.75rem' }}>
-                                Send a test message to verify the service is working. Leave the text empty to use the default HTML template; otherwise your text is sent as plain (no HTML tags).
-                            </p>
-                            <textarea
-                                value={testMessageBody}
-                                onChange={(e) => setTestMessageBody(e.target.value)}
-                                placeholder="Custom message (optional, max 4096 chars)…"
-                                rows={3}
-                                maxLength={4096}
-                                style={{
-                                    width: '100%',
-                                    maxWidth: '32rem',
-                                    marginBottom: '0.75rem',
-                                    padding: '0.6rem 0.75rem',
-                                    fontSize: '0.85rem',
-                                    borderRadius: '8px',
-                                    border: '1px solid rgba(255,255,255,0.12)',
-                                    background: 'rgba(0,0,0,0.25)',
-                                    color: 'rgba(255,255,255,0.9)',
-                                    resize: 'vertical',
-                                }}
-                            />
-                            {activeUsers.length === 0 ? (
-                                <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.4)' }}>No active users. Add users first.</p>
-                            ) : (
-                                <>
-                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                        {activeUsers.map((u) => (
-                                            <label key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontSize: '0.85rem' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={testRecipients.has(u.username)}
-                                                    onChange={(e) => {
-                                                        setTestRecipients((prev) => {
-                                                            const next = new Set(prev);
-                                                            if (e.target.checked) next.add(u.username);
-                                                            else next.delete(u.username);
-                                                            return next;
-                                                        });
-                                                    }}
-                                                    style={{ accentColor: '#00FF94' }}
-                                                />
-                                                @{u.username}
-                                            </label>
-                                        ))}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <button
-                                            onClick={async () => {
-                                                if (testRecipients.size === 0) { alert('Select at least one user'); return; }
-                                                setSendingTest(true);
-                                                setTestResult(null);
-                                                try {
-                                                    const { data } = await axios.post<{ sent: string[]; failed: { username: string; error: string }[]; queued?: boolean; message?: string }>('/api/settings/test-notification', {
-                                                        usernames: [...testRecipients],
-                                                        message: testMessageBody.trim() || undefined,
-                                                    });
-                                                    setTestResult({
-                                                        sent: data.sent,
-                                                        failed: data.failed,
-                                                        ...(data.queued && data.message ? { queued: data.message } : {}),
-                                                    });
-                                                } catch (e: any) {
-                                                    setTestResult({ sent: [], failed: [{ username: '', error: e.response?.data?.error || 'Failed' }] });
-                                                } finally {
-                                                    setSendingTest(false);
-                                                }
-                                            }}
-                                            disabled={sendingTest || testRecipients.size === 0}
-                                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.4rem 0.85rem', fontSize: '0.85rem', background: 'rgba(0,255,148,0.15)', border: '1px solid rgba(0,255,148,0.3)', borderRadius: '8px', color: '#00FF94', cursor: sendingTest || testRecipients.size === 0 ? 'not-allowed' : 'pointer' }}
-                                        >
-                                            {sendingTest ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                                            {sendingTest ? 'Sending…' : 'Send test message'}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setTestRecipients(new Set(activeUsers.map((u) => u.username)))}
-                                            style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
-                                        >
-                                            Select all
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setTestRecipients(new Set())}
-                                            style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer' }}
-                                        >
-                                            Clear
-                                        </button>
-                                    </div>
-                                    {testResult && (
-                                        <div style={{ marginTop: '0.75rem', fontSize: '0.85rem' }}>
-                                            {testResult.queued && (
-                                                <span style={{ color: '#00A3FF' }}>{testResult.queued}</span>
-                                            )}
-                                            {testResult.sent.length > 0 && (
-                                                <span style={{ color: '#00FF94' }}>Sent to @{testResult.sent.join(', @')}</span>
-                                            )}
-                                            {testResult.failed.length > 0 && (
-                                                <div style={{ color: 'rgba(255,159,10,0.9)', marginTop: '0.25rem' }}>
-                                                    Failed: {testResult.failed.map((f) => f.username ? `@${f.username}: ${f.error}` : f.error).join('; ')}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </>
-                            )}
-                        </div>
                     </div>
 
                     <div className="card" style={{ padding: '1rem', marginTop: '1rem' }}>

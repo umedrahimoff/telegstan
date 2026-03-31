@@ -360,18 +360,17 @@ export default function BotUsersPage() {
                                                             <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", flexWrap: "wrap" }}>
                                                                 <Link
                                                                     href={`/dashboard/users/${u.id}`}
-                                                                    className="btn-link"
-                                                                    style={{ display: "inline-flex", alignItems: "center", gap: "0.25rem", fontSize: "0.78rem", padding: "0.25rem 0.45rem" }}
+                                                                    style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(0,163,255,0.35)", color: "rgba(0,163,255,0.95)", background: "rgba(0,163,255,0.12)" }}
                                                                     title="Редактировать каналы и ключевые слова"
                                                                 >
-                                                                    <Pencil size={13} /> Edit
+                                                                    <Pencil size={13} />
                                                                 </Link>
                                                                 {u.isActive ? (
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => freezeToggle(u, true)}
                                                                         title="Заморозить"
-                                                                        style={{ background: "none", border: "none", color: "rgba(255,159,10,0.9)", cursor: "pointer", display: "flex" }}
+                                                                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(255,159,10,0.35)", color: "rgba(255,159,10,0.95)", background: "rgba(255,159,10,0.12)", cursor: "pointer" }}
                                                                     >
                                                                         <Pause size={14} />
                                                                     </button>
@@ -380,7 +379,7 @@ export default function BotUsersPage() {
                                                                         type="button"
                                                                         onClick={() => freezeToggle(u, false)}
                                                                         title="Разморозить"
-                                                                        style={{ background: "none", border: "none", color: "rgba(0,255,117,0.9)", cursor: "pointer", display: "flex" }}
+                                                                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(0,255,117,0.35)", color: "rgba(0,255,117,0.95)", background: "rgba(0,255,117,0.12)", cursor: "pointer" }}
                                                                     >
                                                                         <Play size={14} />
                                                                     </button>
@@ -390,7 +389,7 @@ export default function BotUsersPage() {
                                                                         type="button"
                                                                         onClick={() => deleteBotUser(u)}
                                                                         title="Удалить"
-                                                                        style={{ background: "none", border: "none", color: "rgba(255,69,69,0.9)", cursor: "pointer", display: "flex" }}
+                                                                        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "26px", height: "26px", borderRadius: "6px", border: "1px solid rgba(255,69,69,0.35)", color: "rgba(255,69,69,0.95)", background: "rgba(255,69,69,0.12)", cursor: "pointer" }}
                                                                     >
                                                                         <Trash2 size={14} />
                                                                     </button>

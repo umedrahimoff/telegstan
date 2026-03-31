@@ -40,14 +40,14 @@ export async function DELETE(req: Request) {
 
     const user = await prisma.appUser.findUnique({ where: { id } });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
-    if (user.role === "admin") return NextResponse.json({ error: "Cannot delete admin" }, { status: 400 });
+    if (user.role === "admin") return NextResponse.json({ error: "Cannot suspend admin" }, { status: 400 });
 
     await prisma.appUser.update({
         where: { id },
         data: { canAccessAdmin: false },
     });
     await logAction({ action: "user_suspend", actorId: admin.id, actorUsername: admin.username, targetType: "user", targetId: id, details: `@${user.username}` });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, suspended: true });
 }
 
 export async function PATCH(req: Request) {
