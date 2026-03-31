@@ -185,7 +185,7 @@ export async function POST(req: Request) {
                             await client.disconnect();
                             return NextResponse.json(
                                 {
-                                    error: `Telegram rate limit on username lookup. Retry in ~${formatHumanDuration(floodSec)}. If this channel is already in your chats, use Sync or try again later.`,
+                                    error: `Telegram rate limit on username lookup. Retry in ~${formatHumanDuration(floodSec)}. Open the channel in Telegram (so it appears in dialogs), use Sync on the Channels page, or try again after the wait.`,
                                     retryAfterSeconds: floodSec,
                                 },
                                 { status: 429 }
