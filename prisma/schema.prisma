@@ -94,11 +94,15 @@ model AppUser {
   role           String    @default("moderator") // "admin" | "moderator"
   isActive       Boolean   @default(true)
   canAccessAdmin Boolean   @default(true) // false = suspended: no login, but still receives notifications
+  telegramUserId String?   @unique
+  telegramChatId String?
+  botLinkedAt    DateTime?
   createdAt      DateTime  @default(now())
   lastLoginAt    DateTime?
   lastActivityAt DateTime?
   userChannels   UserChannel[]
   userKeywords   UserKeyword[]
+  reviewedBotRequests BotSubscriptionRequest[] @relation("BotRequestReviewer")
 }
 
 model UserChannel {
@@ -175,4 +179,21 @@ model ActionLog {
   @@index([createdAt])
   @@index([action])
   @@index([actorId])
+}
+
+model BotSubscriptionRequest {
+  id               String   @id @default(cuid())
+  telegramUserId   String
+  telegramUsername String?
+  chatId           String
+  status           String   @default("pending") // pending | approved | rejected
+  reviewNote       String?
+  requestedAt      DateTime @default(now())
+  reviewedAt       DateTime?
+  reviewedByUserId String?
+  reviewedBy       AppUser? @relation("BotRequestReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([status, requestedAt])
+  @@index([telegramUsername])
+  @@unique([telegramUserId, status])
 }
