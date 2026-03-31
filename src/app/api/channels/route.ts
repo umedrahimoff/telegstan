@@ -4,6 +4,7 @@ import { StringSession } from "telegram/sessions";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { logAction } from "@/lib/actionLog";
+import { formatHumanDuration, parseTelegramFloodWaitSeconds } from "@/lib/telegramFloodWait";
 
 const apiId = parseInt(process.env.TELEGRAM_API_ID || "0");
 const apiHash = process.env.TELEGRAM_API_HASH || "";
@@ -152,12 +153,20 @@ export async function POST(req: Request) {
                 try {
                     entity = await client.getEntity(cleanUsername);
                     console.log("Entity resolved:", entity.id?.toString(), entity.title);
-                } catch (err: any) {
+                } catch (err: unknown) {
                     await client.disconnect();
-                    return NextResponse.json(
-                        { error: `Channel not found: ${err.message}` },
-                        { status: 404 }
-                    );
+                    const floodSec = parseTelegramFloodWaitSeconds(err);
+                    if (floodSec !== null) {
+                        return NextResponse.json(
+                            {
+                                error: `Telegram rate limit: too many username lookups (contacts.ResolveUsername). Try again in ~${formatHumanDuration(floodSec)}. If the chat is already in this account’s dialogs, use Sync instead of adding by @username.`,
+                                retryAfterSeconds: floodSec,
+                            },
+                            { status: 429 }
+                        );
+                    }
+                    const msg = err instanceof Error ? err.message : String(err);
+                    return NextResponse.json({ error: `Channel not found: ${msg}` }, { status: 404 });
                 }
 
                 const telegramId = entity.id.toString();
@@ -226,10 +235,25 @@ export async function POST(req: Request) {
                     }
                     throw createErr;
                 }
-            } catch (err: any) {
-                console.error("TG error:", err.message);
-                try { await client.disconnect(); } catch (_) { }
-                return NextResponse.json({ error: err.message || "Telegram error" }, { status: 500 });
+            } catch (err: unknown) {
+                const msg = err instanceof Error ? err.message : String(err);
+                console.error("TG error:", msg);
+                try {
+                    await client.disconnect();
+                } catch {
+                    /* ignore */
+                }
+                const floodSec = parseTelegramFloodWaitSeconds(err);
+                if (floodSec !== null) {
+                    return NextResponse.json(
+                        {
+                            error: `Telegram rate limit. Try again in ~${formatHumanDuration(floodSec)}.`,
+                            retryAfterSeconds: floodSec,
+                        },
+                        { status: 429 }
+                    );
+                }
+                return NextResponse.json({ error: msg || "Telegram error" }, { status: 500 });
             }
         }
 
