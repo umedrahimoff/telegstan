@@ -57,12 +57,12 @@ export type TelegramBotUpdate = {
     };
 };
 
-export async function getTelegramBotUpdates(offset?: number): Promise<TelegramBotUpdate[]> {
+export async function getTelegramBotUpdates(offset?: number, timeoutSec = 25): Promise<TelegramBotUpdate[]> {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
     if (!token) return [];
 
     const qs = new URLSearchParams({
-        timeout: "0",
+        timeout: String(Math.max(0, Math.min(50, timeoutSec))),
         allowed_updates: JSON.stringify(["message"]),
         ...(typeof offset === "number" ? { offset: String(offset) } : {}),
     });

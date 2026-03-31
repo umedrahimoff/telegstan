@@ -546,11 +546,11 @@ async function startMonitoring() {
             console.warn("Bot init failed:", (e as Error).message);
         }
 
-        setInterval(async () => {
+        const pollBotUpdatesOnce = async () => {
             try {
                 const offsetRow = await prisma.appSetting.findUnique({ where: { key: BOT_UPDATES_OFFSET_KEY } });
                 const offset = offsetRow?.value ? parseInt(offsetRow.value, 10) : undefined;
-                const updates = await getTelegramBotUpdates(Number.isFinite(offset) ? offset : undefined);
+                const updates = await getTelegramBotUpdates(Number.isFinite(offset) ? offset : undefined, 25);
                 if (updates.length === 0) return;
 
                 let nextOffset = offset ?? 0;
@@ -821,7 +821,16 @@ async function startMonitoring() {
             } catch (e) {
                 console.warn("Bot polling error:", (e as Error).message);
             }
-        }, 10_000);
+        };
+
+        const pollBotUpdatesLoop = async () => {
+            while (true) {
+                await pollBotUpdatesOnce();
+                // tiny pause only after each long-poll cycle
+                await new Promise((r) => setTimeout(r, 150));
+            }
+        };
+        void pollBotUpdatesLoop();
     }
 
     console.log("🟢 Listener active. Waiting for messages...");
