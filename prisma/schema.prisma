@@ -104,6 +104,7 @@ model AppUser {
   userKeywords   UserKeyword[]
   reviewedBotRequests BotSubscriptionRequest[] @relation("BotRequestReviewer")
   reviewedChannelSuggestions BotChannelSuggestion[] @relation("BotSuggestionReviewer")
+  botBroadcastLogs BotBroadcastLog[] @relation("BotBroadcastActor")
 }
 
 model UserChannel {
@@ -233,4 +234,22 @@ model BotChannelSuggestion {
   reviewedBy       AppUser? @relation("BotSuggestionReviewer", fields: [reviewedByUserId], references: [id], onDelete: SetNull)
 
   @@index([status, createdAt])
+}
+
+model BotBroadcastLog {
+  id               String   @id @default(cuid())
+  mode             String   // all | selected
+  message          String
+  attemptedCount   Int      @default(0)
+  sentCount        Int      @default(0)
+  failedCount      Int      @default(0)
+  recipientsJson   String   // JSON array of usernames
+  failedJson       String   // JSON array of { username, error }
+  actorId          String?
+  actorUsername    String?
+  actor            AppUser? @relation("BotBroadcastActor", fields: [actorId], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
 }

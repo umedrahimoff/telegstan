@@ -49,6 +49,19 @@ type BotLinkedUser = {
     lastActivityAt: string | null;
 };
 
+type BotBroadcastLog = {
+    id: string;
+    mode: "all" | "selected" | string;
+    message: string;
+    attemptedCount: number;
+    sentCount: number;
+    failedCount: number;
+    recipientsJson: string;
+    failedJson: string;
+    actorUsername: string | null;
+    createdAt: string;
+};
+
 export default function BotUsersPage() {
     type SectionKey = "requests" | "suggestions" | "broadcast" | "users" | "history";
     const router = useRouter();
@@ -63,7 +76,7 @@ export default function BotUsersPage() {
     const [broadcastBusy, setBroadcastBusy] = useState(false);
     const [broadcastResult, setBroadcastResult] = useState<{ sent: string[]; failed: { username: string; error: string }[] } | null>(null);
     const { data: me } = useSWR<{ role: string }>("/api/auth/me", fetcher);
-    const { data, mutate } = useSWR<{ requests: BotRequest[]; suggestions: BotSuggestion[]; users: BotLinkedUser[] }>(
+    const { data, mutate } = useSWR<{ requests: BotRequest[]; suggestions: BotSuggestion[]; broadcasts: BotBroadcastLog[]; users: BotLinkedUser[] }>(
         me?.role === "admin" ? "/api/bot-users" : null,
         fetcher,
         { refreshInterval: 15000 }
@@ -79,6 +92,7 @@ export default function BotUsersPage() {
     const approved = (data?.requests ?? []).filter((r) => r.status === "approved").slice(0, 50);
     const rejected = (data?.requests ?? []).filter((r) => r.status === "rejected").slice(0, 50);
     const pendingSuggestions = (data?.suggestions ?? []).filter((s) => s.status === "pending");
+    const broadcasts = data?.broadcasts ?? [];
     const users = data?.users ?? [];
     const broadcastUsers = users.filter((u) => !!u.telegramChatId && u.isActive);
     const menuItems: { key: SectionKey; title: string; icon: React.ReactNode }[] = [
@@ -409,6 +423,31 @@ export default function BotUsersPage() {
                                         </div>
                                     ))}
                                 </div>
+                            </div>
+                            <div style={{ marginTop: "1rem", borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: "1rem" }}>
+                                <h3 style={{ fontSize: "0.95rem", fontWeight: 700, marginBottom: "0.6rem" }}>Broadcast History</h3>
+                                {broadcasts.length === 0 ? (
+                                    <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Пока нет отправленных рассылок.</p>
+                                ) : (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
+                                        {broadcasts.slice(0, 50).map((b) => (
+                                            <div key={b.id} className="card" style={{ padding: "0.65rem" }}>
+                                                <div style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.85)" }}>
+                                                    <div>
+                                                        <b>{new Date(b.createdAt).toLocaleString()}</b> — mode: <b>{b.mode}</b>, by{" "}
+                                                        <b>@{b.actorUsername || "system"}</b>
+                                                    </div>
+                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>
+                                                        attempted {b.attemptedCount}, sent {b.sentCount}, failed {b.failedCount}
+                                                    </div>
+                                                    <div style={{ marginTop: "0.25rem", color: "rgba(255,255,255,0.72)", whiteSpace: "pre-wrap" }}>
+                                                        {b.message.length > 280 ? `${b.message.slice(0, 280)}...` : b.message}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

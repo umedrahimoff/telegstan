@@ -62,6 +62,20 @@ export async function POST(req: Request) {
         details: `mode=${mode}; users=${users.length}; sent=${sent.length}; failed=${failed.length}`,
     });
 
+    await prisma.botBroadcastLog.create({
+        data: {
+            mode,
+            message,
+            attemptedCount: users.length,
+            sentCount: sent.length,
+            failedCount: failed.length,
+            recipientsJson: JSON.stringify(sent),
+            failedJson: JSON.stringify(failed),
+            actorId: admin.id,
+            actorUsername: admin.username,
+        },
+    });
+
     return NextResponse.json({
         success: true,
         sent,
