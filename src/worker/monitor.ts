@@ -31,6 +31,9 @@ const BOT_MENU = {
 async function startMonitoring() {
     console.log("🚀 Starting TGStan Monitor...");
     console.log(process.env.DEEPL_API_KEY ? "✅ DeepL translation enabled" : "⚠️ DEEPL_API_KEY not set — alerts will be sent without translation");
+    const botTokenPresent = Boolean(process.env.TELEGRAM_BOT_TOKEN?.trim());
+    const deliveryMode = (process.env.TELEGRAM_DELIVERY_MODE || "").trim() || "(auto)";
+    console.log(`🤖 Bot token present: ${botTokenPresent ? "yes" : "no"}; delivery mode: ${deliveryMode}`);
 
     // 1. Get Session from DB
     const session = await prisma.session.findFirst({
