@@ -62,9 +62,11 @@ export default function BotUsersPage() {
     const [broadcastSelected, setBroadcastSelected] = useState<Set<string>>(new Set());
     const [broadcastBusy, setBroadcastBusy] = useState(false);
     const [broadcastResult, setBroadcastResult] = useState<{ sent: string[]; failed: { username: string; error: string }[] } | null>(null);
+    const [historyPage, setHistoryPage] = useState(1);
+    const HISTORY_PAGE_SIZE = 20;
     const { data: me } = useSWR<{ id: string; role: string }>("/api/auth/me", fetcher);
-    const { data, mutate } = useSWR<{ requests: BotRequest[]; broadcasts: BotBroadcastLog[]; users: BotLinkedUser[] }>(
-        me?.role === "admin" ? "/api/bot-users" : null,
+    const { data, mutate } = useSWR<{ requests: BotRequest[]; broadcasts: BotBroadcastLog[]; broadcastsTotal: number; broadcastsPage: number; broadcastsPageSize: number; users: BotLinkedUser[] }>(
+        me?.role === "admin" ? `/api/bot-users?broadcastPage=${historyPage}&broadcastPageSize=${HISTORY_PAGE_SIZE}` : null,
         fetcher,
         { refreshInterval: 15000 }
     );
@@ -79,6 +81,8 @@ export default function BotUsersPage() {
     const approved = (data?.requests ?? []).filter((r) => r.status === "approved").slice(0, 50);
     const rejected = (data?.requests ?? []).filter((r) => r.status === "rejected").slice(0, 50);
     const broadcasts = data?.broadcasts ?? [];
+    const broadcastsTotal = data?.broadcastsTotal ?? 0;
+    const historyTotalPages = Math.max(1, Math.ceil(broadcastsTotal / HISTORY_PAGE_SIZE));
     const users = data?.users ?? [];
     const broadcastUsers = users.filter((u) => !!u.telegramChatId && u.isActive);
     const menuItems: { key: SectionKey; title: string; icon: React.ReactNode }[] = [
@@ -151,6 +155,8 @@ export default function BotUsersPage() {
                 message: broadcastMessage,
             });
             setBroadcastResult({ sent: data.sent, failed: data.failed });
+            setHistoryPage(1);
+            mutate();
         } catch (e: unknown) {
             const msg = axios.isAxiosError(e) ? e.response?.data?.error : "Broadcast failed";
             alert(typeof msg === "string" ? msg : "Broadcast failed");
@@ -436,7 +442,7 @@ export default function BotUsersPage() {
                                     <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Пока нет отправленных рассылок.</p>
                                 ) : (
                                     <div style={{ display: "flex", flexDirection: "column", gap: "0.55rem" }}>
-                                        {broadcasts.slice(0, 50).map((b) => (
+                                        {broadcasts.map((b) => (
                                             <div key={b.id} className="card" style={{ padding: "0.65rem" }}>
                                                 <div style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.85)" }}>
                                                     <div>
@@ -452,6 +458,45 @@ export default function BotUsersPage() {
                                                 </div>
                                             </div>
                                         ))}
+                                        {historyTotalPages > 1 && (
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "0.2rem" }}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                                                    disabled={historyPage <= 1}
+                                                    style={{
+                                                        padding: "0.3rem 0.6rem",
+                                                        borderRadius: "6px",
+                                                        border: "1px solid rgba(255,255,255,0.2)",
+                                                        background: "transparent",
+                                                        color: historyPage <= 1 ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.8)",
+                                                        cursor: historyPage <= 1 ? "not-allowed" : "pointer",
+                                                        fontSize: "0.8rem",
+                                                    }}
+                                                >
+                                                    ← Назад
+                                                </button>
+                                                <span style={{ fontSize: "0.8rem", color: "rgba(255,255,255,0.6)" }}>
+                                                    Стр. {historyPage} из {historyTotalPages}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))}
+                                                    disabled={historyPage >= historyTotalPages}
+                                                    style={{
+                                                        padding: "0.3rem 0.6rem",
+                                                        borderRadius: "6px",
+                                                        border: "1px solid rgba(255,255,255,0.2)",
+                                                        background: "transparent",
+                                                        color: historyPage >= historyTotalPages ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.8)",
+                                                        cursor: historyPage >= historyTotalPages ? "not-allowed" : "pointer",
+                                                        fontSize: "0.8rem",
+                                                    }}
+                                                >
+                                                    Вперед →
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
