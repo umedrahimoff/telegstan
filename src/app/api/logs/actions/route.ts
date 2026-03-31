@@ -27,7 +27,13 @@ export async function GET(req: Request) {
             }
             conditions.push({ createdAt });
         }
-        if (action) conditions.push({ action });
+        if (action) {
+            if (action.endsWith("*")) {
+                conditions.push({ action: { startsWith: action.slice(0, -1) } });
+            } else {
+                conditions.push({ action });
+            }
+        }
         if (actor) conditions.push({ actorUsername: { contains: actor, mode: "insensitive" } });
 
         const where = conditions.length > 0 ? { AND: conditions } : undefined;

@@ -52,6 +52,7 @@ const ACTION_LABELS: Record<string, string> = {
     global_keyword_edit: "Global keyword edited",
     global_keyword_remove: "Global keyword removed",
     settings_change: "Settings changed",
+    "bot_users_*": "Bot Users (all events)",
 };
 
 export default function LogsPage() {

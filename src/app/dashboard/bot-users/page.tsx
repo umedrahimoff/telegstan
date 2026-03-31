@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import axios from "axios";
 import useSWR from "swr";
 import { fetcher } from "@/lib/fetcher";
-import { Bot, Check, X, Satellite, Megaphone, Users2, History } from "lucide-react";
+import { Bot, Check, X, Megaphone, Users2, History } from "lucide-react";
 
 type BotRequest = {
     id: string;
@@ -22,18 +22,6 @@ type BotRequest = {
     requestedAt: string;
     reviewedAt: string | null;
     reviewedBy: { id: string; username: string } | null;
-};
-
-type BotSuggestion = {
-    id: string;
-    telegramUserId: string;
-    telegramUsername: string | null;
-    chatId: string;
-    channelInput: string;
-    status: "pending" | "reviewed";
-    reviewNote: string | null;
-    createdAt: string;
-    reviewedAt: string | null;
 };
 
 type BotLinkedUser = {
@@ -63,20 +51,18 @@ type BotBroadcastLog = {
 };
 
 export default function BotUsersPage() {
-    type SectionKey = "requests" | "suggestions" | "broadcast" | "users" | "history";
+    type SectionKey = "requests" | "broadcast" | "users" | "history";
     const router = useRouter();
     const [activeSection, setActiveSection] = useState<SectionKey>("requests");
     const [busyId, setBusyId] = useState<string | null>(null);
-    const [busySuggestionId, setBusySuggestionId] = useState<string | null>(null);
     const [noteById, setNoteById] = useState<Record<string, string>>({});
-    const [suggestionNoteById, setSuggestionNoteById] = useState<Record<string, string>>({});
     const [broadcastMode, setBroadcastMode] = useState<"all" | "selected">("all");
     const [broadcastMessage, setBroadcastMessage] = useState("");
     const [broadcastSelected, setBroadcastSelected] = useState<Set<string>>(new Set());
     const [broadcastBusy, setBroadcastBusy] = useState(false);
     const [broadcastResult, setBroadcastResult] = useState<{ sent: string[]; failed: { username: string; error: string }[] } | null>(null);
     const { data: me } = useSWR<{ role: string }>("/api/auth/me", fetcher);
-    const { data, mutate } = useSWR<{ requests: BotRequest[]; suggestions: BotSuggestion[]; broadcasts: BotBroadcastLog[]; users: BotLinkedUser[] }>(
+    const { data, mutate } = useSWR<{ requests: BotRequest[]; broadcasts: BotBroadcastLog[]; users: BotLinkedUser[] }>(
         me?.role === "admin" ? "/api/bot-users" : null,
         fetcher,
         { refreshInterval: 15000 }
@@ -91,13 +77,11 @@ export default function BotUsersPage() {
     const pending = (data?.requests ?? []).filter((r) => r.status === "pending");
     const approved = (data?.requests ?? []).filter((r) => r.status === "approved").slice(0, 50);
     const rejected = (data?.requests ?? []).filter((r) => r.status === "rejected").slice(0, 50);
-    const pendingSuggestions = (data?.suggestions ?? []).filter((s) => s.status === "pending");
     const broadcasts = data?.broadcasts ?? [];
     const users = data?.users ?? [];
     const broadcastUsers = users.filter((u) => !!u.telegramChatId && u.isActive);
     const menuItems: { key: SectionKey; title: string; icon: React.ReactNode }[] = [
         { key: "requests", title: "Pending Requests", icon: <Bot size={15} /> },
-        { key: "suggestions", title: "Channel Suggestions", icon: <Satellite size={15} /> },
         { key: "broadcast", title: "Broadcast", icon: <Megaphone size={15} /> },
         { key: "users", title: "Bot-linked Users", icon: <Users2 size={15} /> },
         { key: "history", title: "History", icon: <History size={15} /> },
@@ -116,17 +100,10 @@ export default function BotUsersPage() {
         }
     };
 
-    const reviewSuggestion = async (id: string) => {
-        setBusySuggestionId(id);
-        try {
-            await axios.post(`/api/bot-users/suggestions/${id}`, {
-                note: suggestionNoteById[id] || undefined,
-            });
-            mutate();
-        } finally {
-            setBusySuggestionId(null);
-        }
-    };
+    useEffect(() => {
+        if (me?.role !== "admin" || activeSection !== "users") return;
+        void axios.post("/api/bot-users/view", { section: "users" }).catch(() => {});
+    }, [activeSection, me?.role]);
 
     const sendBroadcast = async () => {
         if (!broadcastMessage.trim()) {
@@ -162,7 +139,7 @@ export default function BotUsersPage() {
             <div style={{ marginBottom: "1.2rem" }}>
                 <h1 style={{ fontSize: "1.7rem", fontWeight: 800, marginBottom: "0.25rem" }}>Bot Users</h1>
                 <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.9rem" }}>
-                    Заявки на подписку, регистрационные данные и предложения каналов из бота.
+                    Заявки на доступ, регистрационные данные и список пользователей бота.
                 </p>
             </div>
 
@@ -245,48 +222,6 @@ export default function BotUsersPage() {
                                                             <X size={14} /> Reject
                                                         </button>
                                                     </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {activeSection === "suggestions" && (
-                        <div className="card" style={{ padding: "1rem", marginBottom: "1rem" }}>
-                            <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                                <Satellite size={16} color="#FF9F0A" /> Channel suggestions
-                            </h2>
-                            {pendingSuggestions.length === 0 ? (
-                                <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "0.85rem" }}>Нет новых предложений каналов.</p>
-                            ) : (
-                                <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                                    {pendingSuggestions.map((s) => (
-                                        <div key={s.id} className="card" style={{ padding: "0.7rem" }}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", gap: "0.8rem", flexWrap: "wrap" }}>
-                                                <div style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.9)" }}>
-                                                    <div><b>@{s.telegramUsername || "no_username"}</b></div>
-                                                    <div style={{ color: "rgba(255,255,255,0.55)" }}>Канал: {s.channelInput}</div>
-                                                    <div style={{ color: "rgba(255,255,255,0.4)" }}>created: {new Date(s.createdAt).toLocaleString()}</div>
-                                                </div>
-                                                <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", minWidth: "260px" }}>
-                                                    <input
-                                                        value={suggestionNoteById[s.id] || ""}
-                                                        onChange={(e) => setSuggestionNoteById((prev) => ({ ...prev, [s.id]: e.target.value }))}
-                                                        placeholder="Комментарий (optional)"
-                                                        className="input-field"
-                                                        style={{ height: "34px", fontSize: "0.8rem" }}
-                                                    />
-                                                    <button
-                                                        onClick={() => reviewSuggestion(s.id)}
-                                                        disabled={busySuggestionId === s.id}
-                                                        className="btn-primary"
-                                                        style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.8rem", padding: "0.4rem 0.7rem", width: "fit-content" }}
-                                                    >
-                                                        <Check size={14} /> Mark reviewed
-                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
@@ -383,7 +318,7 @@ export default function BotUsersPage() {
                                     <table className="table-dashboard">
                                         <thead>
                                             <tr>
-                                                <th>Username</th><th>Role</th><th>telegramUserId</th><th>chatId</th><th>Linked</th>
+                                                <th>Username</th><th>Role</th><th>telegramUserId</th><th>chatId</th><th>Status</th><th>Linked</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -393,6 +328,7 @@ export default function BotUsersPage() {
                                                     <td>{u.role}</td>
                                                     <td>{u.telegramUserId || "—"}</td>
                                                     <td>{u.telegramChatId || "—"}</td>
+                                                    <td>{u.isActive ? "Active" : "Frozen"}</td>
                                                     <td>{u.botLinkedAt ? new Date(u.botLinkedAt).toLocaleString() : "—"}</td>
                                                 </tr>
                                             ))}
