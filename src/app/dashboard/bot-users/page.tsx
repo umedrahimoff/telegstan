@@ -55,6 +55,11 @@ export default function BotUsersPage() {
     const [busySuggestionId, setBusySuggestionId] = useState<string | null>(null);
     const [noteById, setNoteById] = useState<Record<string, string>>({});
     const [suggestionNoteById, setSuggestionNoteById] = useState<Record<string, string>>({});
+    const [broadcastMode, setBroadcastMode] = useState<"all" | "selected">("all");
+    const [broadcastMessage, setBroadcastMessage] = useState("");
+    const [broadcastSelected, setBroadcastSelected] = useState<Set<string>>(new Set());
+    const [broadcastBusy, setBroadcastBusy] = useState(false);
+    const [broadcastResult, setBroadcastResult] = useState<{ sent: string[]; failed: { username: string; error: string }[] } | null>(null);
     const { data: me } = useSWR<{ role: string }>("/api/auth/me", fetcher);
     const { data, mutate } = useSWR<{ requests: BotRequest[]; suggestions: BotSuggestion[]; users: BotLinkedUser[] }>(
         me?.role === "admin" ? "/api/bot-users" : null,
@@ -73,6 +78,7 @@ export default function BotUsersPage() {
     const rejected = (data?.requests ?? []).filter((r) => r.status === "rejected").slice(0, 50);
     const pendingSuggestions = (data?.suggestions ?? []).filter((s) => s.status === "pending");
     const users = data?.users ?? [];
+    const broadcastUsers = users.filter((u) => !!u.telegramChatId && u.isActive);
 
     const review = async (id: string, action: "approve" | "reject") => {
         setBusyId(id);
@@ -99,6 +105,35 @@ export default function BotUsersPage() {
         }
     };
 
+    const sendBroadcast = async () => {
+        if (!broadcastMessage.trim()) {
+            alert("Введите текст рассылки");
+            return;
+        }
+        if (broadcastMode === "selected" && broadcastSelected.size === 0) {
+            alert("Выберите хотя бы одного пользователя");
+            return;
+        }
+        setBroadcastBusy(true);
+        setBroadcastResult(null);
+        try {
+            const { data } = await axios.post<{
+                sent: string[];
+                failed: { username: string; error: string }[];
+            }>("/api/bot-users/broadcast", {
+                mode: broadcastMode,
+                userIds: broadcastMode === "selected" ? [...broadcastSelected] : undefined,
+                message: broadcastMessage,
+            });
+            setBroadcastResult({ sent: data.sent, failed: data.failed });
+        } catch (e: unknown) {
+            const msg = axios.isAxiosError(e) ? e.response?.data?.error : "Broadcast failed";
+            alert(typeof msg === "string" ? msg : "Broadcast failed");
+        } finally {
+            setBroadcastBusy(false);
+        }
+    };
+
     return (
         <div className="animate-fade">
             <div style={{ marginBottom: "1.2rem" }}>
@@ -106,6 +141,81 @@ export default function BotUsersPage() {
                 <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "0.9rem" }}>
                     Заявки на подписку, регистрационные данные и предложения каналов из бота.
                 </p>
+            </div>
+
+            <div className="card" style={{ padding: "1rem", marginBottom: "1rem" }}>
+                <h2 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Bot broadcast</h2>
+                <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.55)", marginBottom: "0.6rem" }}>
+                    Массовая или выборочная рассылка пользователям, привязанным к боту.
+                </p>
+                <div style={{ display: "flex", gap: "0.6rem", marginBottom: "0.6rem", flexWrap: "wrap" }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.85rem" }}>
+                        <input type="radio" checked={broadcastMode === "all"} onChange={() => setBroadcastMode("all")} />
+                        Всем ({broadcastUsers.length})
+                    </label>
+                    <label style={{ display: "flex", alignItems: "center", gap: "0.35rem", fontSize: "0.85rem" }}>
+                        <input type="radio" checked={broadcastMode === "selected"} onChange={() => setBroadcastMode("selected")} />
+                        По выбору
+                    </label>
+                </div>
+                {broadcastMode === "selected" && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.6rem" }}>
+                        {broadcastUsers.map((u) => (
+                            <label key={u.id} style={{ display: "inline-flex", gap: "0.3rem", alignItems: "center", fontSize: "0.82rem", cursor: "pointer" }}>
+                                <input
+                                    type="checkbox"
+                                    checked={broadcastSelected.has(u.id)}
+                                    onChange={(e) =>
+                                        setBroadcastSelected((prev) => {
+                                            const next = new Set(prev);
+                                            if (e.target.checked) next.add(u.id);
+                                            else next.delete(u.id);
+                                            return next;
+                                        })
+                                    }
+                                />
+                                @{u.username}
+                            </label>
+                        ))}
+                    </div>
+                )}
+                <textarea
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    rows={4}
+                    maxLength={4096}
+                    placeholder="Текст рассылки..."
+                    style={{
+                        width: "100%",
+                        padding: "0.55rem 0.7rem",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(255,255,255,0.14)",
+                        background: "rgba(0,0,0,0.25)",
+                        color: "rgba(255,255,255,0.9)",
+                        fontSize: "0.85rem",
+                        marginBottom: "0.6rem",
+                    }}
+                />
+                <button
+                    onClick={sendBroadcast}
+                    disabled={broadcastBusy}
+                    className="btn-primary"
+                    style={{ fontSize: "0.85rem", padding: "0.45rem 0.8rem" }}
+                >
+                    {broadcastBusy ? "Отправка..." : "Отправить рассылку"}
+                </button>
+                {broadcastResult && (
+                    <div style={{ marginTop: "0.65rem", fontSize: "0.82rem" }}>
+                        {broadcastResult.sent.length > 0 && (
+                            <div style={{ color: "#00FF94" }}>Sent to @{broadcastResult.sent.join(", @")}</div>
+                        )}
+                        {broadcastResult.failed.length > 0 && (
+                            <div style={{ color: "#FF9F0A", marginTop: "0.25rem" }}>
+                                Failed: {broadcastResult.failed.map((f) => `@${f.username}: ${f.error}`).join("; ")}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="card" style={{ padding: "1rem", marginBottom: "1rem" }}>
