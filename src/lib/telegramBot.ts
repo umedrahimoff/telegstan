@@ -90,6 +90,20 @@ export async function getTelegramBotMe(): Promise<{ id: number; username?: strin
     return data.result;
 }
 
+export async function getTelegramBotWebhookInfo(): Promise<{ url: string | null; pendingUpdateCount?: number }> {
+    const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
+    if (!token) return { url: null };
+
+    const res = await fetch(`${TELEGRAM_BOT_API}/bot${token}/getWebhookInfo`);
+    const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        result?: { url?: string; pending_update_count?: number };
+    };
+    if (!res.ok || !data.ok || !data.result) return { url: null };
+    const url = data.result.url?.trim() || null;
+    return { url: url || null, pendingUpdateCount: data.result.pending_update_count };
+}
+
 export async function deleteTelegramBotWebhook(dropPending = false): Promise<void> {
     const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
     if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
