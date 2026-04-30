@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { logAction } from "@/lib/actionLog";
 
 export async function PATCH(
@@ -8,8 +8,8 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const user = await requireAdmin();
+        if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
         const { id } = await params;
         const body = await req.json();

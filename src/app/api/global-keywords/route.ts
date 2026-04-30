@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireAdmin } from "@/lib/auth";
 import { logAction } from "@/lib/actionLog";
 
 function normalize(text: string): string {
@@ -33,8 +33,8 @@ export async function GET() {
 
 export async function POST(req: Request) {
     try {
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const user = await requireAdmin();
+        if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
         const body = await req.json();
         const text = normalize(body.text ?? "");
@@ -74,8 +74,8 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
     try {
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        const user = await requireAdmin();
+        if (!user) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
         const body = await req.json();
         const ids: string[] = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];

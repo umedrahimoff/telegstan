@@ -13,8 +13,9 @@ export async function GET() {
         const dbStart = Date.now();
         await prisma.$queryRaw`SELECT 1`;
         checks.database = { status: "ok", latencyMs: Date.now() - dbStart };
-    } catch (e: any) {
-        checks.database = { status: "error", error: e?.message || "Connection failed" };
+    } catch (e) {
+        console.error("Health check DB error:", e);
+        checks.database = { status: "error" };
     }
 
     const healthy = Object.values(checks).every((c) => c.status === "ok");

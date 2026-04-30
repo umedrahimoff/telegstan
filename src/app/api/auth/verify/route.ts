@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { AUTH_SESSION_COOKIE } from "@/lib/authCookie";
+import { createAuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rateLimit";
 
@@ -49,13 +50,14 @@ export async function POST(req: Request) {
             data: { lastLoginAt: now, lastActivityAt: now },
         });
 
+        const { token, expiresAt } = await createAuthSession(user.id);
         const cookieStore = await cookies();
-        cookieStore.set(AUTH_SESSION_COOKIE, user.id, {
+        cookieStore.set(AUTH_SESSION_COOKIE, token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === "production",
             sameSite: "lax",
             path: "/",
-            maxAge: 60 * 60 * 24 * 7,
+            expires: expiresAt,
         });
 
         return NextResponse.json({ success: true, redirect: "/dashboard" });
